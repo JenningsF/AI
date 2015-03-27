@@ -8,40 +8,48 @@ Assignment	: Project 3: AI
 ********************************************************/
 #include <string>
 #include <vector>
+#include <bitset>
 #include <iostream>
 #include <fstream>
 
 using namespace std;
 
-enum bitOp {NONE, AND, OR, NOT};
+enum bitOp {AND, OR, NOT, NONE};
 
-struct Gate {
-	int gateNum, value, operand1, operand2;
+struct Gate
+{
+	int gateNum, operId1, operId2;
+	bitset<8> value;
+	bitset<8> operVal1;
+	bitset<8> operVal2;
 	bitOp operation;
 	string gateLine;
 };
 
-// *** NEED TO ADD PARENT CIRCUIT FUNCTION FOR "TREE" ***
-struct Circuit {
-	int id, output, notCount;
+struct Circuit
+{
+	int id, notCount;
+	bitset<8> output;
 	vector<Gate> gateList;
 	string circuitry;
 	Circuit* parent;
 };
 
-string opToString(int operation) {
-	switch(operation) {
+string opToString(int operation)
+{
+	switch(operation)
+	{
 		case 0:
-			return "NONE";
-			break;
-		case 1:
 			return "AND";
 			break;
-		case 2:
+		case 1:
 			return "OR";
 			break;
-		case 3:
+		case 2:
 			return "NOT";
+			break;
+		case 3:
+			return "NONE";
 			break;
 		default:
 			return "NULL";
@@ -49,23 +57,25 @@ string opToString(int operation) {
 	}
 }
 
-int bitOperation(int operation, int operand1, int operand2) {
-	int result;
-	switch(operation) {
+bitset<8> bitOperation(int operation, bitset<8> operand1, bitset<8> operand2)
+{
+	bitset<8> result;
+	switch(operation)
+	{
 		case 0:
-			result = operand1;
-			return result;
-			break;
-		case 1:
 			result = operand1 & operand2;
 			return result;
 			break;
-		case 2:
+		case 1:
 			result = operand1 | operand2;
 			return result;
 			break;
-		case 3:
+		case 2:
 			result = ~operand1;
+			return result;
+			break;
+		case 3:
+			result = operand1;
 			return result;
 			break;
 		default:
@@ -74,147 +84,262 @@ int bitOperation(int operation, int operand1, int operand2) {
 	}
 }
 
-string gateToString(Gate convert) {			// maybe need a Gate&
+string gateToString(Gate convert)	// maybe need a Gate&
+{
 	string gateLine =	to_string(convert.gateNum) + " " +
 						opToString(convert.operation) + " " +
-						to_string(convert.operand1);
-	if (convert.operand2 != 0) {
-		gateLine += to_string(convert.operand2);
+						to_string(convert.operId1);
+	if (convert.operId1 != convert.operId2)
+	{
+		gateLine += " " + to_string(convert.operId2);
 	}
+
+	if (convert.operation == NOT)
+	{
+		gateLine += "\t";
+	}
+	gateLine += "\tValue: " + convert.value.to_string();
+
+	gateLine += "\r\n";
 
 	return gateLine;
 }
 
-Gate initGate(int id, bitOp op, int val, int oper1, int oper2) {
+Gate initGate(int id, bitOp op, bitset<8> val, Gate& oper1, Gate& oper2)
+{
 	Gate newGate;
 	newGate.gateNum = id;
 	newGate.operation = op;
 	newGate.value = val;
-	newGate.operand1 = oper1;	
-	newGate.operand2 = oper2;
+	newGate.operId1 = oper1.gateNum;
+	newGate.operId2 = oper2.gateNum;
+	newGate.operVal1 = oper1.value;
+	newGate.operVal2 = oper2.value;
 	newGate.gateLine = gateToString(newGate);
 
 	return newGate;
 }
 
-Circuit initCircuit(int gateId, int outputVal, int nots, vector<Gate> gates, string circuit, Circuit* parentCirc) {
+Circuit initCircuit(int gateId, bitset<8> outputVal, int nots, vector<Gate> gates, string circuit, Circuit& parentCirc)
+{
 	Circuit newCirc;
 	newCirc.id = gateId;
 	newCirc.output = outputVal;
 	newCirc.notCount = nots;
 	newCirc.gateList = gates;
 	newCirc.circuitry = circuit;
-	newCirc.parent = parentCirc;
+	newCirc.parent = &parentCirc;
 
 	return newCirc;
 }
 
-Circuit parentCircuit() {
-	Circuit parentCircuit;
+Circuit parentCircuit()
+{
 	vector<Gate> gates;
+	string circuit = "";
+	
 	// X input
-	Gate initOne = initGate(1, NONE, 15, 1, 0);
-	// Gate initOne;
-	// initOne.gateNum = 1;
-	// initOne.operation = NONE;
-	// initOne.value = 15;
-	// initOne.operand1 = 1;	
-	// initOne.operand2 = 0;
-	// initOne.gateLine = gateToString(initOne);
+	Gate initOne = initGate(1, NONE, 15, initOne, initOne);			// 00001111
 	gates.push_back(initOne);
+	circuit += gateToString(initOne);
 
 	// Y input
-	Gate initTwo = initGate(2, NONE, 51, 2, 0);
-	// Gate initTwo;
-	// initTwo.gateNum = 2;
-	// initTwo.operation = NONE;
-	// initTwo.value = 51;
-	// initTwo.operand1 = 2;
-	// initTwo.operand2 = 0;
-	// initTwo.gateLine = gateToString(initTwo);
+	Gate initTwo = initGate(2, NONE, 51, initTwo, initTwo);			//0011001100
 	gates.push_back(initTwo);
+	circuit += gateToString(initTwo);
 
 	// Carry In input
-	Gate initThree = initGate(3, NONE, 85, 3, 0);
-	// Gate initThree;
-	// initThree.gateNum = 3;
-	// initThree.operation = NONE;
-	// initThree.value = 85;
-	// initThree.operand1 = 3;
-	// initThree.operand2 = 0;
-	// initThree.gateLine = gateToString(initThree);
+	Gate initThree = initGate(3, NONE, 85, initThree, initThree);	// 01010101
 	gates.push_back(initThree);
+	circuit += gateToString(initThree);
 
-	parentCircuit.id = 1;
-	parentCircuit.output = 0;
-	parentCircuit.notCount = 0;
-
-	Circuit parentCircuit = initCircuit(1, 0, 0, gates, string circuit, -1);
-
-	vector<Gate> initialGateList = parentCircuit.gateList;
-	for (int i = 0; i < initialGateList.size(); ++i) {
-		parentCircuit.circuitry += initialGateList[i].gateLine + "\tValue: " + to_string(initialGateList[i].value) + "\r\n";
-	}
-	// initialCircuit.circuitry = initOne.gateLine + "\tValue: " + to_string(initOne.value) + "\r\n" +
-	// 						initTwo.gateLine + "\tValue: " + to_string(initTwo.value) + "\r\n" +
-	// 						initThree.gateLine + "\tValue: " + to_string(initThree.value) + "\r\n";
-
+	Circuit parentCircuit = initCircuit(0, 0, 0, gates, circuit, parentCircuit);
 	return parentCircuit;
 }
 
-// void populate(Circuit parent, vector<Circuit> allCircuits) {
-// 	vector<Gate> parentGates = parent.gateList;
-// 	bitOp ops[4] = {NONE, AND, OR, NOT};
-// 	vector<bitOp> bitOpers(&ops[0], &ops[0] + 4);
+// returns a circuit conataining a new gate combination with the passed bit operation
+void newCircuitCombo(Circuit& parent, bitOp oper, vector<Circuit>& circuitList)
+{
+	vector<Gate>& parentGates = parent.gateList;
+	// cout << "\nparentGates.size(): " << parentGates.size() << endl;
+	if (parentGates.size() > 1)
+	{
+		if (oper == NOT)
+		{
+			for (int i = 0; i < parentGates.size(); ++i)
+			{
+				vector<Gate> newGateList = parentGates;
+				bitset<8> newResult = bitOperation(oper, parentGates[i].value, parentGates[i].value);
 
-// 	for (int i = 0; i < parentGates.size(); ++i) {
-// 		for (int j = 0; j < bitOpers.size(); ++j) {
-// 			Gate nextGate = initGate(parentGates.size(), bitOpers[j], 15, 1, 0);
-// 			if (bitOpers[j] == NONE) {			// Going through NONE operation combinations
-// 				cout << "NONE code will go here.";
-// 				/* code */
-// 			}
-// 			else if (bitOpers[j] == AND && i != parentGates.size() - 1) {		// Going through AND operation combinations
-// 				for (int k = i + 1; k < parentGates.size(); ++k) {
-// 					int newResult = bitOperation(j, parentGates[i].value, parentGates[k].value);
-// 					Gate nextGate = initGate(parentGates.size(), bitOpers[j], newResult, i, k);
-// 					Circuit circ = initCircuit(allCircuits.size(), int outputVal, 0, vector<Gate> gates, string circuit);
-// 				}
-// 			}
-// 			else if (bitOpers[j] == OR && i != parentGates.size() - 1) {		// Going through OR operation combinations
-				
-// 			}
-// 			else if (bitOpers[j] == NOT) {		// Going through NOT operation combinations
-				
-// 			}
-// 			else cerr << "ERROR: 'j' is not what it should be!";
-// 		}
-// 	}
-// }
+				// cout << "\nparentGates[i]: " << parentGates[i].gateNum << endl;
 
-void printCircuit(Circuit c) {
+				Gate nextGate = initGate(parentGates.size() + 1, oper, newResult, parentGates[i], parentGates[i]);
+				newGateList.push_back(nextGate);
+
+				string newCircString = parent.circuitry + gateToString(nextGate);
+				Circuit circ = initCircuit(circuitList.size(), newResult, parent.notCount, newGateList, newCircString, parent);
+
+				circuitList.push_back(circ);
+			}
+		}
+		// cout << "\nLoop 1:" << endl;
+		else {
+			for (int i = 0; i < parentGates.size() - 1; ++i)
+			{
+				// cout << "i: " << i << endl;
+				// cout << "parentGates.size() - 1: " << parentGates.size() - 1 << endl;
+				// cout << "Loop 2:" << endl;
+				for (int j = i + 1; j < parentGates.size(); ++j)
+				{
+					// cout << "j: " << j << endl;
+					// cout << "parentGates.size(): " << parentGates.size() << endl;
+
+					vector<Gate> newGateList = parentGates;
+					bitset<8> newResult = bitOperation(oper, parentGates[i].value, parentGates[j].value);
+
+					// cout << "\nparentGates[i]: " << parentGates[i].gateNum << endl;
+					// cout << "parentGates[j]: " << parentGates[j].gateNum << endl;
+
+					Gate nextGate = initGate(parentGates.size() + 1, oper, newResult, parentGates[i], parentGates[j]);
+					
+					newGateList.push_back(nextGate);
+
+					string newCircString = parent.circuitry + gateToString(nextGate);
+					Circuit circ = initCircuit(circuitList.size(), newResult, parent.notCount, newGateList, newCircString, parent);
+
+					circuitList.push_back(circ);
+				}
+			}
+		}
+	}
+	else
+	{
+		cerr << "ERROR: only 1 gate in the parent.";
+	}
+}
+
+void printGate(Gate g)
+{
+	cout << "gateNum: " << g.gateNum << endl;
+	cout << "value: " << g.value << endl;
+	cout << "operId1: " << g.operId1 << endl;
+	cout << "operId2: " << g.operId2 << endl;
+	cout << "operVal1: " << g.operVal1 << endl;
+	cout << "operVal2: " << g.operVal2 << endl;
+	cout << "operation: " << g.operation << endl;
+	cout << "gateLine: " << g.gateLine << endl;
+}
+
+void printCircuit(Circuit c)
+{
 	cout << c.circuitry;
 }
 
-void printFile(Circuit c) {
+void printCircuitList(vector<Circuit> circuitList)
+{
+	for (int i = 0; i < circuitList.size(); ++i)
+	{
+		cout << "Circuit " << i + 1 << ":" << endl;
+		printCircuit(circuitList[i]);
+	}
+}
+
+void printFile(Circuit c)
+{
 	ofstream out("output.txt");
 	out << c.circuitry;
 }
 
-int main(int argc, char const *argv[]) {
-	// inputs
-	int x = 15;			// x input		
-	int y = 51;			// y input
-	int ci = 85;		// carry in
-	
-	// outputs
-	int co = 23;		// carry out
-	int sum = 105;		// sum
+void populateTier(Circuit& parent, vector<Circuit>& allCircuits)
+{
+	bitOp ops[3] = {AND, OR, NOT};
+	vector<bitOp> bitOpers(&ops[0], &ops[0] + 3);
+	// cout << "\nallCircuits.size(): " < < allCircuits.size() << endl;
+	// cout << "\nparent.gateList.size(): " << parent.gateList.size() << endl;
 
+	for (int i = 0; i < bitOpers.size(); ++i)
+	{
+		if (bitOpers[i] == AND)	// Going through NONE operation combinations
+		{
+			// cout << "\n********************************************************" << endl;
+			// cout << "\t\tAND Operation Gates" << endl;
+			// cout << "********************************************************" << endl;
+
+			// vector<Circuit> andCircs = allCircuits;
+
+			// newCircuitCombo(parent, AND, andCircs);
+			newCircuitCombo(parent, AND, allCircuits);
+			// allCircuits.push_back(andCirc);
+
+			// andCircs.push_back(andCirc);
+
+			// for (int m = 0; m < andCircs.size(); ++m)
+			// {
+			// 	cout << "Circuit " << m << ":" << endl;
+			// 	printCircuit(andCircs[m]);
+			// }
+		}
+		else if (bitOpers[i] == OR)	// Going through OR operation combinations
+		{
+			// cout << "\n********************************************************" << endl;
+			// cout << "\t\tOR Operation Gates" << endl;
+			// cout << "********************************************************" << endl;
+
+			// vector<Circuit> orCircs = allCircuits;
+
+			// newCircuitCombo(parent, OR, orCircs);
+			newCircuitCombo(parent, OR, allCircuits);
+			// allCircuits.push_back(orCirc);
+
+			// orCircs.push_back(orCirc);
+
+			// for (int m = 0; m < orCircs.size(); ++m)
+			// {
+			// 	cout << "Circuit " << m << ":" << endl;
+			// 	printCircuit(orCircs[m]);
+			// }
+		}
+		else if (bitOpers[i] == NOT)	// Going through NOT operation combinations
+		{
+			// cout << "\n********************************************************" << endl;
+			// cout << "\t\tNOT Operation Gates" << endl;
+			// cout << "********************************************************" << endl;
+
+			// vector<Circuit> notCircs = allCircuits;
+
+			// newCircuitCombo(parent, NOT, notCircs);
+			newCircuitCombo(parent, NOT, allCircuits);
+			// allCircuits.push_back(notCirc);
+
+			// notCircs.push_back(notCirc);
+
+			// for (int m = 0; m < notCircs.size(); ++m)
+			// {
+			// 	cout << "Circuit " << m << ":" << endl;
+			// 	printCircuit(notCircs[m]);
+			// }
+		}
+		else cerr << "ERROR: 'j' is not what it should be!";
+	}
+}
+
+int main(int argc, char const *argv[])
+{
 	Circuit initial = parentCircuit();
 	vector<Circuit> circuits;
 	circuits.push_back(initial);
+	cout << "********************************************************" << endl;
+	cout << "\t\t\tINITIAL" << endl;
+	cout << "********************************************************" << endl;
 	printCircuit(initial);
+	vector<Gate> initialGates = initial.gateList;
+
+	populateTier(initial, circuits);
+
+	cout << "********************************************************" << endl;
+	cout << "\t\t\tFINAL LIST" << endl;
+	cout << "********************************************************" << endl;
+	printCircuitList(circuits);
 
 	return 0;
 }
