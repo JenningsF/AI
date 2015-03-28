@@ -33,6 +33,8 @@ struct Circuit
 	vector<Gate> gateList;
 	string circuitry;
 	Circuit* parent;
+	bool correctFlag1 = false;
+	bool correctFlag2 = false;
 };
 
 string opToString(int operation)
@@ -157,67 +159,6 @@ Circuit parentCircuit()
 	return parentCircuit;
 }
 
-// returns a circuit conataining a new gate combination with the passed bit operation
-void newCircuitCombo(Circuit& parent, bitOp oper, vector<Circuit>& circuitList)
-{
-	vector<Gate>& parentGates = parent.gateList;
-	// cout << "\nparentGates.size(): " << parentGates.size() << endl;
-	if (parentGates.size() > 1)
-	{
-		if (oper == NOT)
-		{
-			for (int i = 0; i < parentGates.size(); ++i)
-			{
-				vector<Gate> newGateList = parentGates;
-				bitset<8> newResult = bitOperation(oper, parentGates[i].value, parentGates[i].value);
-
-				// cout << "\nparentGates[i]: " << parentGates[i].gateNum << endl;
-
-				Gate nextGate = initGate(parentGates.size() + 1, oper, newResult, parentGates[i], parentGates[i]);
-				newGateList.push_back(nextGate);
-
-				string newCircString = parent.circuitry + gateToString(nextGate);
-				Circuit circ = initCircuit(circuitList.size(), newResult, parent.notCount, newGateList, newCircString, parent);
-
-				circuitList.push_back(circ);
-			}
-		}
-		// cout << "\nLoop 1:" << endl;
-		else {
-			for (int i = 0; i < parentGates.size() - 1; ++i)
-			{
-				// cout << "i: " << i << endl;
-				// cout << "parentGates.size() - 1: " << parentGates.size() - 1 << endl;
-				// cout << "Loop 2:" << endl;
-				for (int j = i + 1; j < parentGates.size(); ++j)
-				{
-					// cout << "j: " << j << endl;
-					// cout << "parentGates.size(): " << parentGates.size() << endl;
-
-					vector<Gate> newGateList = parentGates;
-					bitset<8> newResult = bitOperation(oper, parentGates[i].value, parentGates[j].value);
-
-					// cout << "\nparentGates[i]: " << parentGates[i].gateNum << endl;
-					// cout << "parentGates[j]: " << parentGates[j].gateNum << endl;
-
-					Gate nextGate = initGate(parentGates.size() + 1, oper, newResult, parentGates[i], parentGates[j]);
-					
-					newGateList.push_back(nextGate);
-
-					string newCircString = parent.circuitry + gateToString(nextGate);
-					Circuit circ = initCircuit(circuitList.size(), newResult, parent.notCount, newGateList, newCircString, parent);
-
-					circuitList.push_back(circ);
-				}
-			}
-		}
-	}
-	else
-	{
-		cerr << "ERROR: only 1 gate in the parent.";
-	}
-}
-
 void printGate(Gate g)
 {
 	cout << "gateNum: " << g.gateNum << endl;
@@ -244,102 +185,290 @@ void printCircuitList(vector<Circuit> circuitList)
 	}
 }
 
-void printFile(Circuit c)
+void printTiers(vector< vector<Circuit> > tiers)
 {
-	ofstream out("output.txt");
-	out << c.circuitry;
+	cout << "tiers.size(): " << tiers.size() << endl;
+	for (int i = 0; i < tiers.size(); ++i)
+	{
+		cout << "\n********************************************************" << endl;
+		cout << "\t\t\tTIER: " << i + 1 << endl;
+		cout << "********************************************************" << endl;
+		printCircuitList(tiers[i]);
+	}
 }
 
-void populateTier(Circuit& parent, vector<Circuit>& allCircuits)
+void printFile(vector< vector<Circuit> > tiers)
 {
+	ofstream out("output.txt");
+	cout << "Printing file...\t";
+	for (int i = 0; i < tiers.size(); ++i)
+	{
+		out << "\n********************************************************" << endl;
+		out << "\t\t\tTIER: " << i + 1 << endl;
+		out << "********************************************************" << endl;
+		vector<Circuit> circuitList = tiers[i];
+		for (int j = 0; j < circuitList.size(); ++j)
+		{
+			Circuit c = circuitList[j];
+			out << "Circuit " << j + 1 << ":" << endl;
+			out << c.circuitry;
+		}
+	}
+	cout << "Done!" << endl;
+}
+
+void printSolution(Circuit& sol, int tierNum)
+{
+	cout << "\n********************************************************" << endl;
+	cout << "\t\t\tSOLUTION" << endl;
+	cout << "********************************************************" << endl;
+	
+	cout << "Tier " << tierNum << endl;
+	cout << "Circuit " << sol.id << endl;
+	printCircuit(sol);
+}
+
+bool doesGateExist(Circuit current, Gate checkFor)
+{
+	vector<Gate> currentGateList = current.gateList;
+	for (int i = 0; i < currentGateList.size(); ++i)
+	{
+		if (checkFor.operId1 == currentGateList[i].operId1 &&
+			checkFor.operId2 == currentGateList[i].operId2 &&
+			checkFor.value == currentGateList[i].value)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+// Check if a new gate added to a curcuit contains a solution
+void checkCorrectOutput(Circuit& currentCirc, Gate toCheck)
+{
+	bitset<8> OUTPUT1 = 23;
+	bitset<8> OUTPUT2 = 105;
+
+	if (toCheck.value == OUTPUT1)
+	{
+		currentCirc.correctFlag1 = true;
+	}
+	else if (toCheck.value == OUTPUT2)
+	{
+		currentCirc.correctFlag2 = true;
+	}
+}
+
+// Traverses a tier and checks if a circuit is a full solution
+bool solutionCheck(vector<Circuit>& solTestVect)
+{
+	for (int i = 0; i < solTestVect.size(); ++i)
+	{
+		Circuit solTest = solTestVect[i];
+		if (solTest.correctFlag1 && solTest.correctFlag2)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+// Returns solution circuit 
+Circuit solutionCircuit(vector<Circuit>& solTestVect)
+{
+	for (int i = 0; i < solTestVect.size(); ++i)
+	{
+		Circuit solTest = solTestVect[i];
+		if (solTest.correctFlag1 && solTest.correctFlag2)
+		{
+			return solTest;
+		}
+	}
+}
+
+// Creates a circuit conataining a new gate combination with the passed bit operation
+void newCircuitCombo(Circuit& parent, bitOp oper, vector<Circuit>& circuitList)
+{
+	// cout << "---------Inside newCircuitCombo---------" << endl;
+	// cout << "circuitList: " << circuitList.size() << endl;
+	vector<Gate>& parentGates = parent.gateList;
+	if (parentGates.size() > 1)
+	{
+		if (oper == NOT)
+		{
+			for (int i = 0; i < parentGates.size(); ++i)
+			{
+				// cout << "i: " << i << "\t"; 
+				// cout << "size: " << parentGates.size() << endl;
+				// cout << "Inside NOT loop." << endl;
+				vector<Gate> newGateList = parentGates;
+				bitset<8> newResult = bitOperation(oper, parentGates[i].value, parentGates[i].value);
+
+				Gate nextGate = initGate(parentGates.size() + 1, oper, newResult, parentGates[i], parentGates[i]);
+				// check if gate already exists, so gates aren't duplicated
+				if (!doesGateExist(parent, nextGate) && parent.notCount < 2)
+				{
+					newGateList.push_back(nextGate);
+					string newCircString = parent.circuitry + gateToString(nextGate);
+					Circuit circ = initCircuit(circuitList.size(), newResult, parent.notCount + 1, newGateList, newCircString, parent);
+					circuitList.push_back(circ);
+					checkCorrectOutput(circ, nextGate);
+					// cout << "Circ pushed back." << endl;
+					// printCircuit(circ);
+				}
+			}
+		}
+		else
+		{
+			for (int i = 0; i < parentGates.size() - 1; ++i)
+			{
+				// cout << "i: " << i << "\t"; 
+				// cout << "size() - 1: " << parentGates.size() - 1 << endl;
+				// cout << "Inside OTHER loop 1." << endl;
+				for (int j = i + 1; j < parentGates.size(); ++j)
+				{
+					// cout << "j: " << j << "\t"; 
+					// cout << "size(): " << parentGates.size() << endl;
+					// cout << "Inside OTHER loop 2." << endl;
+					vector<Gate> newGateList = parentGates;
+					bitset<8> newResult = bitOperation(oper, parentGates[i].value, parentGates[j].value);
+
+					Gate nextGate = initGate(parentGates.size() + 1, oper, newResult, parentGates[i], parentGates[j]);
+					// check if gate already exists, so gates aren't duplicated
+					if (!doesGateExist(parent, nextGate))
+					{
+						newGateList.push_back(nextGate);
+						string newCircString = parent.circuitry + gateToString(nextGate);
+						Circuit circ = initCircuit(circuitList.size(), newResult, parent.notCount, newGateList, newCircString, parent);
+						circuitList.push_back(circ);
+						// cout << "Circ pushed back." << endl;
+						// printCircuit(circ);
+					}
+					// cout << "End of loop2." << endl;
+				}
+				// cout << "End of loop1." << endl;
+			}
+		}
+	}
+	else
+	{
+		cerr << "ERROR: only 1 gate in the parent.";
+	}
+	// cout << "---------Inside newCircuitCombo---------" << endl;
+}
+
+// Takes parent circuit from one tier and populates the tier below it
+vector<Circuit> populateTier(Circuit& parent)
+{
+	// cout << "-------Inside populateTier-------" << endl;
 	bitOp ops[3] = {AND, OR, NOT};
 	vector<bitOp> bitOpers(&ops[0], &ops[0] + 3);
-	// cout << "\nallCircuits.size(): " < < allCircuits.size() << endl;
-	// cout << "\nparent.gateList.size(): " << parent.gateList.size() << endl;
+	vector<Circuit> newTier;
 
+	// cout << "bitOpers.size(): " << bitOpers.size() << endl;
 	for (int i = 0; i < bitOpers.size(); ++i)
 	{
-		if (bitOpers[i] == AND)	// Going through NONE operation combinations
+		// Going through AND operation combinations
+		if (bitOpers[i] == AND)
 		{
-			// cout << "\n********************************************************" << endl;
-			// cout << "\t\tAND Operation Gates" << endl;
-			// cout << "********************************************************" << endl;
-
-			// vector<Circuit> andCircs = allCircuits;
-
-			// newCircuitCombo(parent, AND, andCircs);
-			newCircuitCombo(parent, AND, allCircuits);
-			// allCircuits.push_back(andCirc);
-
-			// andCircs.push_back(andCirc);
-
-			// for (int m = 0; m < andCircs.size(); ++m)
-			// {
-			// 	cout << "Circuit " << m << ":" << endl;
-			// 	printCircuit(andCircs[m]);
-			// }
+			// cout << "*****Going through AND operation combinations*****" << endl;
+			newCircuitCombo(parent, AND, newTier);
 		}
-		else if (bitOpers[i] == OR)	// Going through OR operation combinations
+		// Going through OR operation combinations
+		else if (bitOpers[i] == OR)
 		{
-			// cout << "\n********************************************************" << endl;
-			// cout << "\t\tOR Operation Gates" << endl;
-			// cout << "********************************************************" << endl;
-
-			// vector<Circuit> orCircs = allCircuits;
-
-			// newCircuitCombo(parent, OR, orCircs);
-			newCircuitCombo(parent, OR, allCircuits);
-			// allCircuits.push_back(orCirc);
-
-			// orCircs.push_back(orCirc);
-
-			// for (int m = 0; m < orCircs.size(); ++m)
-			// {
-			// 	cout << "Circuit " << m << ":" << endl;
-			// 	printCircuit(orCircs[m]);
-			// }
+			// cout << "*****Going through OR operation combinations*****" << endl;
+			newCircuitCombo(parent, OR, newTier);
 		}
-		else if (bitOpers[i] == NOT)	// Going through NOT operation combinations
+		// Going through NOT operation combinations
+		else if (bitOpers[i] == NOT)
 		{
-			// cout << "\n********************************************************" << endl;
-			// cout << "\t\tNOT Operation Gates" << endl;
-			// cout << "********************************************************" << endl;
-
-			// vector<Circuit> notCircs = allCircuits;
-
-			// newCircuitCombo(parent, NOT, notCircs);
-			newCircuitCombo(parent, NOT, allCircuits);
-			// allCircuits.push_back(notCirc);
-
-			// notCircs.push_back(notCirc);
-
-			// for (int m = 0; m < notCircs.size(); ++m)
-			// {
-			// 	cout << "Circuit " << m << ":" << endl;
-			// 	printCircuit(notCircs[m]);
-			// }
+			// cout << "*****Going through NOT operation combinations*****" << endl;
+			newCircuitCombo(parent, NOT, newTier);
 		}
-		else cerr << "ERROR: 'j' is not what it should be!";
+		// else cerr << "ERROR: 'j' is not what it should be!";
 	}
+	return newTier;
+	// cout << "-------Ending populateTier-------" << endl;
+}
+
+void createPopulation(vector< vector<Circuit> >& tiers, int numOfTiers)
+{
+	// cout << "-----Inside createPopulation-----" << endl;
+	// cout << "\t\t Initial tiers.size(): " << tiers.size() << endl;
+	// cout << "numOfTiers: " << numOfTiers << endl;
+	bool solutionFound = false;
+	vector<Circuit> entireNewTier;
+		for (int i = 1; ; ++i)
+		{
+			// cout << "***1st for loop***" << endl;
+			// cout << "i: " << i << "\tnumOfTiers: " << numOfTiers << endl;
+			// vector<Circuit> entireNewTier;
+			vector<Circuit> currentTier = tiers[i - 1];
+			// cout << "currentTier.size(): " << currentTier.size() << endl;
+			for (int j = 0; j < currentTier.size(); ++j)
+			{
+				// cout << "\t******2nd for loop******" << endl;
+				Circuit& parent = currentTier[j];
+				// cout << "\tj: " << j << "\tcurrentTier: " << currentTier.size() << endl;
+				vector<Circuit> partialNewTier = populateTier(parent);
+				entireNewTier.insert(entireNewTier.end(), partialNewTier.begin(), partialNewTier.end());
+				// cout << "\n********************************************************" << endl;
+				// cout << "\t\t\tOld 1st tier" << endl;
+				// cout << "********************************************************" << endl;
+				// printCircuitList(tiers[0]);
+				// cout << "\n********************************************************" << endl;
+				// cout << "\t\t\tnewTier" << endl;
+				// cout << "********************************************************" << endl;
+				// printCircuitList(newTier);
+				// cout << "Old Tiers Size: " << tiers.size() << endl;
+				// tiers.push_back(newTier);
+				// cout << "New Tiers Size: " << tiers.size() << endl;
+				// cout << "\n********************************************************" << endl;
+				// cout << "\t\t\tNew 1st tier" << endl;
+				// cout << "********************************************************" << endl;
+				// printCircuitList(tiers[0]);
+				// cout << "\t******End of 2nd for loop******" << endl;
+			}
+			tiers.push_back(entireNewTier);
+			cout << "Tier " << tiers.size() << " made!" << endl;
+			solutionFound = solutionCheck(entireNewTier);
+			if (solutionFound) break;
+			// cout << "***End of 1st for loop***" << endl;
+		}
+	Circuit solution = solutionCircuit(entireNewTier);
+	printSolution(solution, tiers.size());
 }
 
 int main(int argc, char const *argv[])
 {
+	// Change to determine how many tiers you would like
+	int NUMOFTIERS = 4;
 	Circuit initial = parentCircuit();
+	vector< vector<Circuit> > tiers;
 	vector<Circuit> circuits;
 	circuits.push_back(initial);
-	cout << "********************************************************" << endl;
-	cout << "\t\t\tINITIAL" << endl;
-	cout << "********************************************************" << endl;
-	printCircuit(initial);
-	vector<Gate> initialGates = initial.gateList;
+	tiers.push_back(circuits);
 
-	populateTier(initial, circuits);
+	// Gate temp = initGate(2, NONE, 15, temp, temp);
+	// cout << doesGateExist(initial, temp);
 
-	cout << "********************************************************" << endl;
-	cout << "\t\t\tFINAL LIST" << endl;
-	cout << "********************************************************" << endl;
-	printCircuitList(circuits);
+	// printTiers(tiers);
+
+	// cout << "Tiers Size: " << tiers.size() << endl;
+	createPopulation(tiers, NUMOFTIERS);
+	// cout << "Tiers Size: " << tiers.size() << endl;
+
+	// populateTier(initial, circuits);
+
+	// cout << "********************************************************" << endl;
+	// cout << "\t\t\tFINAL LIST" << endl;
+	// cout << "********************************************************" << endl;
+	// printCircuitList(circuits);
+
+	// printTiers(tiers);
+	printFile(tiers);
+
 
 	return 0;
 }
