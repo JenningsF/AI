@@ -5,6 +5,7 @@ Name		: Jennings Fairchild
 			: Dey'Ana Wilson
 Subject		: CSCE 315-504
 Assignment	: Project 3: AI
+Compile with:  g++-4.7 -std=c++11 -pthread  nonGA2.cpp -lfltk_images
 ********************************************************/
 #include <string>
 #include <vector>
