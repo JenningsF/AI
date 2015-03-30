@@ -215,7 +215,7 @@ void printTiers(vector< vector<Circuit> > tiers)
 // Prints all of the tiers to a txt file
 void printFile(vector< vector<Circuit> > tiers)
 {
-	ofstream out("output.txt");
+	ofstream out("part2_output.txt");
 	cout << "Printing file...";
 	for (int i = 0; i < tiers.size(); ++i)
 	{
@@ -407,7 +407,7 @@ vector<Circuit> populateTier(Circuit& parent, int& numOfCircs, int& tierSize)
 }
 
 // Creates an entire tier
-void createPopulation(vector< vector<Circuit> >& tiers, int numOfTiers, int& numOfCircs)
+vector< vector<Circuit> > createPopulation(vector< vector<Circuit> > tiers, int numOfTiers, int& numOfCircs)
 {
 	bool solutionFound = false;
 	vector<Circuit> entireNewTier;
@@ -433,26 +433,29 @@ void createPopulation(vector< vector<Circuit> >& tiers, int numOfTiers, int& num
 		}
 	Circuit solution = solutionCircuit(entireNewTier);
 	printSolution(solution, tiers.size());
+	return tiers;
 }
 
 int main(int argc, char const *argv[])
 {
 	// Change to determine how many tiers you would like
 	int NUMOFTIERS = 5;
+	
 	Circuit initial = parentCircuit();
 	vector< vector<Circuit> > tiers;
+	vector< vector<Circuit> > allTiers;
 	vector<Circuit> circuits;
 	circuits.push_back(initial);
 	tiers.push_back(circuits);
 	int circuitCount = 1;
 
 	clock_t begin = clock();
-	createPopulation(tiers, NUMOFTIERS, circuitCount);
+	allTiers = createPopulation(tiers, NUMOFTIERS, circuitCount);
 	clock_t end = clock();
 	double elapsedTime = double(end - begin) / CLOCKS_PER_SEC;
 	cout << "Elapsed Time : " << elapsedTime << endl;
 
-	printFile(tiers);
+	printFile(allTiers);
 
 	return 0;
 }
