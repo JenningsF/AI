@@ -42,6 +42,14 @@ struct Circuit
 	bool correctFlag3 = false;
 };
 
+bitset<8> INPUT1 = 15;		// 00001111
+bitset<8> INPUT2 = 51;		// 00110011
+bitset<8> INPUT3 = 85;		// 01010101
+
+bitset<8> OUTPUT1 = 240;	//11110000
+bitset<8> OUTPUT2 = 204;	//11001100
+bitset<8> OUTPUT3 = 170;	//10101010
+
 string opToString(int operation)
 {
 	switch(operation)
@@ -102,14 +110,7 @@ string gateToString(Gate convert)
 	{
 		gateLine += " " + to_string(convert.operId2);
 	}
-
-	if (convert.operation == NOT)
-	{
-		gateLine += "\t";
-	}
-	gateLine += "\tValue: " + convert.value.to_string();
-
-	gateLine += "\r\n";
+	gateLine += "\tValue: " + convert.value.to_string() + "\r\n";
 
 	return gateLine;
 }
@@ -157,17 +158,17 @@ Circuit parentCircuit()
 	string circuit = "";
 	
 	// X input
-	Gate initOne = initGate(1, NONE, 15, initOne, initOne);			// 00001111
+	Gate initOne = initGate(1, NONE, INPUT1, initOne, initOne);			// 00001111
 	gates.push_back(initOne);
 	circuit += gateToString(initOne);
 
 	// Y input
-	Gate initTwo = initGate(2, NONE, 51, initTwo, initTwo);			//0011001100
+	Gate initTwo = initGate(2, NONE, INPUT2, initTwo, initTwo);			//0011001100
 	gates.push_back(initTwo);
 	circuit += gateToString(initTwo);
 
 	// Carry In input
-	Gate initThree = initGate(3, NONE, 85, initThree, initThree);	// 01010101
+	Gate initThree = initGate(3, NONE, INPUT3, initThree, initThree);	// 01010101
 	gates.push_back(initThree);
 	circuit += gateToString(initThree);
 
@@ -242,6 +243,14 @@ void printSolution(Circuit& sol, int tierNum)
 	
 	cout << "Tier " << tierNum << endl;
 	printCircuit(sol);
+
+	cout << "\nInput 1:\t" << INPUT1 << endl;
+	cout << "Input 2:\t" << INPUT2 << endl;
+	cout << "Input 3:\t" << INPUT3 << endl;
+
+	cout << "\nOutput 1:\t" << OUTPUT1 << endl;
+	cout << "Output 2:\t" << OUTPUT2 << endl;
+	cout << "Output 3:\t" << OUTPUT3 << endl;
 	cout << "\nSolution 1:";
 	printGate(sol.solution1);
 	cout << "Solution 2:";
@@ -253,12 +262,9 @@ void printSolution(Circuit& sol, int tierNum)
 // Checks if the gate already exits
 bool doesGateExist(vector<Gate> currentGateList, Gate checkFor)
 {
-	// vector<Gate> currentGateList = current.gateList;
 	for (int i = 0; i < currentGateList.size(); ++i)
 	{
-		if (checkFor.operId1 == currentGateList[i].operId1 &&
-			checkFor.operId2 == currentGateList[i].operId2 &&
-			checkFor.value == currentGateList[i].value)
+		if (checkFor.value == currentGateList[i].value)
 		{
 			return true;
 		}
@@ -266,13 +272,36 @@ bool doesGateExist(vector<Gate> currentGateList, Gate checkFor)
 	return false;
 }
 
+bool doesOutputExist(vector< bitset<8> >& outputList, bitset<8> outputToCheck)
+{
+	for (int i = 0; i < outputList.size(); ++i)
+	{
+		if (outputToCheck == outputList[i])
+		{
+			return true;
+		}
+	}
+	outputList.push_back(outputToCheck);
+	return false;
+}
+
+void setInputs(int in1, int in2, int in3)
+{
+	INPUT1 = in1;
+	INPUT2 = in2;
+	INPUT3 = in3;
+}
+
+void setOutputs()
+{
+	OUTPUT1 = ~INPUT1;
+	OUTPUT2 = ~INPUT2;
+	OUTPUT3 = ~INPUT3;
+}
+
 // Check if a new gate added to a curcuit contains a solution
 void checkCorrectOutput(Circuit& currentCirc, Gate toCheck)
 {
-	bitset<8> OUTPUT1 = 240;
-	bitset<8> OUTPUT2 = 204;
-	bitset<8> OUTPUT3 = 170;
-
 	if (toCheck.value == OUTPUT1)
 	{
 		currentCirc.correctFlag1 = true;
@@ -290,8 +319,76 @@ void checkCorrectOutput(Circuit& currentCirc, Gate toCheck)
 	}
 }
 
+// Checks if a solution is found
+// If one is already found, it will search for the other
+bool isSolutionFound(Circuit checking, int& switcher)
+{
+	switch(switcher)
+	{
+		case 0:
+			if (checking.correctFlag1 || checking.correctFlag2 || checking.correctFlag3)
+			{
+				cout << "Found a solution " << endl; 
+				return true;
+			}
+			else return false;
+			break;
+		case 1:
+			if (checking.correctFlag1)
+			{
+				cout << "Found 1st solution " << endl;
+				return true;
+			}
+			else return false;
+			break;
+		case 2:
+			if (checking.correctFlag2)
+			{
+				cout << "Found 2nd solution " << endl;
+				return true;
+			}
+			else return false;
+			break;
+		case 3:
+			if (checking.correctFlag3)
+			{
+				cout << "Found 3rd solution " << endl;
+				return true;
+			}
+			else return false;
+			break;
+		case 4:
+			if (checking.correctFlag1 || checking.correctFlag2)
+			{
+				cout << "Found another solution " << endl;
+				return true;
+			}
+			else return false;
+			break;
+		case 5:
+			if (checking.correctFlag1 || checking.correctFlag3)
+			{
+				cout << "Found another solution " << endl;
+				return true;
+			}
+			else return false;
+			break;
+		case 6:
+			if (checking.correctFlag2 || checking.correctFlag3)
+			{
+				cout << "Found another solution " << endl;
+				return true;
+			}
+			else return false;
+			break;
+		default:
+			return false;
+			break;
+	}
+}
+
 // Traverses a tier and checks if a circuit is a full solution
-bool solutionCheck(vector<Circuit>& solTestVect)
+bool allSolutionCheck(vector<Circuit>& solTestVect)
 {
 	for (int i = 0; i < solTestVect.size(); ++i)
 	{
@@ -304,8 +401,8 @@ bool solutionCheck(vector<Circuit>& solTestVect)
 	return false;
 }
 
-// Returns solution circuit 
-Circuit solutionCircuit(vector<Circuit>& solTestVect)
+// Returns circuit with all solutions
+Circuit allSolutionCircuit(vector<Circuit>& solTestVect)
 {
 	for (int i = 0; i < solTestVect.size(); ++i)
 	{
@@ -318,9 +415,10 @@ Circuit solutionCircuit(vector<Circuit>& solTestVect)
 }
 
 // Creates a circuit conataining a new gate combination with the passed bit operation
-void newCircuitCombo(Circuit& parent, bitOp oper, vector<Circuit>& newCircuitList, int& numOfCircs, int& tierSize)
+void newCircuitCombo(Circuit& parent, bitOp oper, vector<Circuit>& newCircuitList, int& numOfCircs, int& tierSize, vector< bitset<8> >& outputList, bool& solutionFound, int& solSwitch, int entireSize)
 {
 	vector<Gate>& parentGates = parent.gateList;
+
 	if (parentGates.size() > 1)
 	{
 		if (oper == NOT)
@@ -332,7 +430,11 @@ void newCircuitCombo(Circuit& parent, bitOp oper, vector<Circuit>& newCircuitLis
 
 				Gate nextGate = initGate(newGateList.size() + 1, oper, newResult, parentGates[i], parentGates[i]);
 				// check if gate already exists, so gates aren't duplicated
-				if (!doesGateExist(parentGates, nextGate) && parent.notCount < 2)
+				if (!doesGateExist(parentGates, nextGate) 
+					&& !doesOutputExist(outputList, nextGate.value) 
+					&& parent.notCount < 2
+					&& entireSize > 4
+					)
 				{
 					newGateList.push_back(nextGate);
 					string newCircString = parent.circuitry + gateToString(nextGate);
@@ -341,7 +443,35 @@ void newCircuitCombo(Circuit& parent, bitOp oper, vector<Circuit>& newCircuitLis
 					newCircuitList.push_back(circ);
 					++numOfCircs;
 					++tierSize;
-					cout << "Total # of Circuits: " << numOfCircs << endl;
+					if (isSolutionFound(circ, solSwitch))
+					{
+						solutionFound = true;
+						if (circ.correctFlag2 && circ.correctFlag3)
+						{
+							solSwitch = 1;
+						}
+						else if (circ.correctFlag1 && circ.correctFlag3)
+						{
+							solSwitch = 2;
+						}
+						else if (circ.correctFlag1 && circ.correctFlag2)
+						{
+							solSwitch = 3;
+						}
+						else if (circ.correctFlag3)
+						{
+							solSwitch = 4;
+						}
+						else if (circ.correctFlag2)
+						{
+							solSwitch = 5;
+						}
+						else if (circ.correctFlag1)
+						{
+							solSwitch = 6;
+						}
+						break;
+					}
 				}
 			}
 		}
@@ -356,7 +486,9 @@ void newCircuitCombo(Circuit& parent, bitOp oper, vector<Circuit>& newCircuitLis
 
 					Gate nextGate = initGate(newGateList.size() + 1, oper, newResult, parentGates[i], parentGates[j]);
 					// check if gate already exists, so gates aren't duplicated
-					if (!doesGateExist(parentGates, nextGate))
+					if (!doesGateExist(parentGates, nextGate)
+						 && !doesOutputExist(outputList, nextGate.value)
+						 )
 					{
 						newGateList.push_back(nextGate);
 						string newCircString = parent.circuitry + gateToString(nextGate);
@@ -365,9 +497,38 @@ void newCircuitCombo(Circuit& parent, bitOp oper, vector<Circuit>& newCircuitLis
 						newCircuitList.push_back(circ);
 						++numOfCircs;
 						++tierSize;
-						cout << "Total # of Circuits: " << numOfCircs << endl;
+						if (isSolutionFound(circ, solSwitch))
+						{
+							solutionFound = true;
+							if (circ.correctFlag2 && circ.correctFlag3)
+							{
+								solSwitch = 1;
+							}
+							else if (circ.correctFlag1 && circ.correctFlag3)
+							{
+								solSwitch = 2;
+							}
+							else if (circ.correctFlag1 && circ.correctFlag2)
+							{
+								solSwitch = 3;
+							}
+							else if (circ.correctFlag3)
+							{
+								solSwitch = 4;
+							}
+							else if (circ.correctFlag2)
+							{
+								solSwitch = 5;
+							}
+							else if (circ.correctFlag1)
+							{
+								solSwitch = 6;
+							}
+							break;
+						}
 					}
 				}
+				if (solutionFound) break;
 			}
 		}
 	}
@@ -378,7 +539,7 @@ void newCircuitCombo(Circuit& parent, bitOp oper, vector<Circuit>& newCircuitLis
 }
 
 // Takes parent circuit from one tier and populates the tier below it
-vector<Circuit> populateTier(Circuit& parent, int& numOfCircs, int& tierSize)
+vector<Circuit> populateTier(Circuit& parent, int& numOfCircs, int& tierSize, vector< bitset<8> >& outputList, bool& solutionFound, int& solSwitch, int entireSize)
 {
 	bitOp ops[3] = {AND, OR, NOT};
 	vector<bitOp> bitOpers(&ops[0], &ops[0] + 3);
@@ -388,74 +549,263 @@ vector<Circuit> populateTier(Circuit& parent, int& numOfCircs, int& tierSize)
 		// Going through AND operation combinations
 		if (bitOpers[i] == AND)
 		{
-			newCircuitCombo(parent, AND, newTier, numOfCircs, tierSize);
+			newCircuitCombo(parent, AND, newTier, numOfCircs, tierSize, outputList, solutionFound, solSwitch, entireSize);
+			if (solutionFound) break;
 		}
 		// Going through OR operation combinations
 		else if (bitOpers[i] == OR)
 		{
-			newCircuitCombo(parent, OR, newTier, numOfCircs, tierSize);
+			newCircuitCombo(parent, OR, newTier, numOfCircs, tierSize, outputList, solutionFound, solSwitch, entireSize);
+			if (solutionFound) break;
 		}
 		// Going through NOT operation combinations
 		else if (bitOpers[i] == NOT)
 		{
-			newCircuitCombo(parent, NOT, newTier, numOfCircs, tierSize);
+			newCircuitCombo(parent, NOT, newTier, numOfCircs, tierSize, outputList, solutionFound, solSwitch, entireSize);
+			if (solutionFound) break;
 		}
 		else cerr << "ERROR: 'j' is not what it should be!";
 	}
-	// cout << "newTier Size: " << newTier.size() << endl;
 	return newTier;
 }
 
 // Creates an entire tier
-vector< vector<Circuit> > createPopulation(vector< vector<Circuit> > tiers, int numOfTiers, int& numOfCircs)
+vector< vector<Circuit> > createPopulation(vector< vector<Circuit> > tiers, int& numOfCircs, bool& solutionFound)
 {
-	bool solutionFound = false;
-	vector<Circuit> entireNewTier;
-		for (int i = 1; ; ++i)
+	bool allSolutionsFound = false;
+	bool firstSolutionFound = solutionFound;
+	bool secondSolutionFound = false;
+	bool thirdSolutionFound = false;
+	bool firstSolTierMade = false;
+	bool secondSolTierMade = false;
+	// bool emptyTier = true;
+	int solSwitch = 0;
+	int i = 0;
+	int numOfTiers = 8;
+
+	while (!allSolutionsFound
+			// && i < numOfTiers
+			)
+	{
+		vector<Circuit> partialNewTier;
+		vector<Circuit> entireNewTier;
+		vector< bitset<8> > outputList;
+		vector<Circuit> currentTier;
+		int tierSize = 0;
+		// Creates tiers until a solution is found
+		if (!firstSolutionFound && !allSolutionsFound)
 		{
-			vector<Circuit> currentTier = tiers[i - 1];
-			int tierSize = 0;
+			partialNewTier.clear();
+			entireNewTier.clear();
+			outputList.clear();
+			currentTier = tiers[tiers.size() - 1];
+			tierSize = 0;
+
+			cout << "\nMaking Tier " << tiers.size() + 1 << "..." << endl;
 			for (int j = 0; j < currentTier.size(); ++j)
 			{
 				Circuit& parent = currentTier[j];
-				vector<Circuit> partialNewTier = populateTier(parent, numOfCircs, tierSize);
+				partialNewTier = populateTier(parent, numOfCircs, tierSize, outputList, firstSolutionFound, solSwitch, tiers.size());
 				entireNewTier.insert(entireNewTier.end(), partialNewTier.begin(), partialNewTier.end());
+				if (firstSolutionFound)
+				{
+					cout << "First Solution Found!" << endl;
+					break;
+				}
+			}
+			if (entireNewTier.size() < 1)
+			{
+				cerr << "No more circuits being made.";
 			}
 			tiers.push_back(entireNewTier);
 			cout << "Tier " << tiers.size() << " made!" << endl;
-			cout << "There are now " << entireNewTier.size() + 1 << " circuits total." << endl;
-			solutionFound = solutionCheck(entireNewTier);
-			if (solutionFound) 
-			{
-				cout << "***** Solution was found *****\nBreaking now..." << endl;
-				break;
-			}
+			cout << "There are now " << numOfCircs << " circuits total." << endl;
 		}
-	Circuit solution = solutionCircuit(entireNewTier);
-	printSolution(solution, tiers.size());
+		// Once one solution is found, use that circuit to create next tier
+		if (firstSolutionFound && !firstSolTierMade &&
+			!secondSolutionFound && !secondSolTierMade &&
+			!thirdSolutionFound && !allSolutionsFound)
+		{
+			partialNewTier.clear();
+			entireNewTier.clear();
+			outputList.clear();
+			currentTier = tiers[tiers.size() - 1];
+			tierSize = 0;
+
+			cout << "\nMaking Tier " << tiers.size() + 1 << "..." << endl;
+			vector<Circuit> lastTier = tiers[tiers.size() - 1];
+			
+			Circuit& firstParentSolution = lastTier[lastTier.size() - 1];
+			entireNewTier = populateTier(firstParentSolution, numOfCircs, tierSize, outputList, secondSolutionFound, solSwitch, tiers.size());
+
+			tiers.push_back(entireNewTier);
+			cout << "Tier " << tiers.size() << " made!" << endl;
+			cout << "There are now " << numOfCircs << " circuits total." << endl;
+			if (secondSolutionFound)
+			{
+				cout << "Second Solution Found!" << endl;
+			}
+			firstSolTierMade = true;
+		}
+		// Continue creating population as usual until second solution is found
+		if (firstSolutionFound && firstSolTierMade && !secondSolutionFound && !secondSolTierMade && !thirdSolutionFound && !allSolutionsFound)
+		{
+			partialNewTier.clear();
+			entireNewTier.clear();
+			outputList.clear();
+			currentTier = tiers[tiers.size() - 1];
+			tierSize = 0;
+
+			cout << "\nMaking Tier " << tiers.size() + 1 << "..." << endl;
+			for (int k = 0; k < currentTier.size(); ++k)
+			{
+				Circuit& newParent = currentTier[k];
+				partialNewTier = populateTier(newParent, numOfCircs, tierSize, outputList, secondSolutionFound, solSwitch, tiers.size());
+				entireNewTier.insert(entireNewTier.end(), partialNewTier.begin(), partialNewTier.end());
+				if (secondSolutionFound)
+				{
+					cout << "Second Solution Found!" << endl;
+					break;
+				}
+			}
+			if (entireNewTier.size() < 1)
+			{
+				cerr << "No more circuits being made.";
+			}
+			tiers.push_back(entireNewTier);
+			cout << "Tier " << tiers.size() << " made!" << endl;
+			cout << "There are now " << numOfCircs << " circuits total." << endl;
+		}
+		// Once second solution is found, use that circuit to create next tier
+		if (firstSolutionFound && firstSolTierMade &&
+			secondSolutionFound && !secondSolTierMade &&
+			!thirdSolutionFound && !allSolutionsFound)
+		{
+			partialNewTier.clear();
+			entireNewTier.clear();
+			outputList.clear();
+			currentTier = tiers[tiers.size() - 1];
+			tierSize = 0;
+
+			cout << "\nMaking Tier " << tiers.size() + 1 << "..." << endl;
+			vector<Circuit> lastTier = tiers[tiers.size() - 1];
+			
+			Circuit& secondParentSolution = lastTier[lastTier.size() - 1];
+			entireNewTier = populateTier(secondParentSolution, numOfCircs, tierSize, outputList, thirdSolutionFound, solSwitch, tiers.size());
+
+			tiers.push_back(entireNewTier);
+			cout << "Tier " << tiers.size() << " made!" << endl;
+			cout << "There are now " << numOfCircs << " circuits total." << endl;
+			if (thirdSolutionFound)
+			{
+				cout << "Second Solution Found!" << endl;
+			}
+			secondSolTierMade = true;
+		}
+		// Continue creating population as usual until third solution is found
+		if (firstSolutionFound && firstSolTierMade && secondSolutionFound && secondSolTierMade && !thirdSolutionFound && !allSolutionsFound)
+		{
+			partialNewTier.clear();
+			entireNewTier.clear();
+			outputList.clear();
+			currentTier = tiers[tiers.size() - 1];
+			tierSize = 0;
+
+			cout << "\nMaking Tier " << tiers.size() + 1 << "..." << endl;
+			for (int l = 0; l < currentTier.size(); ++l)
+			{
+				Circuit& newParent = currentTier[l];
+				partialNewTier = populateTier(newParent, numOfCircs, tierSize, outputList, thirdSolutionFound, solSwitch, tiers.size());
+				entireNewTier.insert(entireNewTier.end(), partialNewTier.begin(), partialNewTier.end());
+				if (thirdSolutionFound)
+				{
+					cout << "Third Solution Found!" << endl;
+					break;
+				}
+			}
+			if (entireNewTier.size() < 1)
+			{
+				cerr << "No more circuits being made.";
+			}
+			tiers.push_back(entireNewTier);
+			cout << "Tier " << tiers.size() << " made!" << endl;
+			cout << "There are now " << numOfCircs << " circuits total." << endl;
+		}
+		allSolutionsFound = allSolutionCheck(entireNewTier);
+		if (allSolutionsFound)
+		{
+			cout << "All Solutions Found!" << endl;
+			break;
+		}
+		++i;
+	}
+	cout << "***** All Solutions were found *****" << endl;
+	// Circuit solution = allSolutionCircuit(tiers[tiers.size() - 1]);
+	// printSolution(solution, tiers.size());
 	return tiers;
 }
 
 int main(int argc, char const *argv[])
 {
-	// Change to determine how many tiers you would like
-	int NUMOFTIERS = 5;
-	
-	Circuit initial = parentCircuit();
 	vector< vector<Circuit> > tiers;
 	vector< vector<Circuit> > allTiers;
 	vector<Circuit> circuits;
+	int input1, input2, input3;
+
+	// cout << "Please input a number for output 1" << endl;
+	// cout << "* Must be 255 or less *" << endl;
+	// cin >> input1;
+	// while (cin.fail() || input1 > 255)
+	// {
+	// 	cin.clear();
+	// 	cin.ignore(256, '\n');
+	// 	cout << "Not a valid int!" << endl;
+	// 	cout << "Please input a number for output 1" << endl;
+	// 	cout << "* Must be 255 or less *" << endl;
+	// 	cin >> input1;
+	// }
+	// cout << "Please input a number for output 2" << endl;
+	// cout << "* Must be 255 or less *" << endl;
+	// cin >> input2;
+	// while (cin.fail() || input2 > 255)
+	// {
+	// 	cin.clear();
+	// 	cin.ignore(256, '\n');
+	// 	cout << "Not a valid int!" << endl;
+	// 	cout << "Please input a number for output 2" << endl;
+	// 	cout << "* Must be 255 or less *" << endl;
+	// 	cin >> input2;
+	// }
+	// cout << "Please input a number for output 3" << endl;
+	// cout << "* Must be 255 or less *" << endl;
+	// cin >> input3;
+	// while (cin.fail() || input3 > 255)
+	// {
+	// 	cin.clear();
+	// 	cin.ignore(256, '\n');
+	// 	cout << "Not a valid int!" << endl;
+	// 	cout << "Please input a number for output 3" << endl;
+	// 	cout << "* Must be 255 or less *" << endl;
+	// 	cin >> input3;
+	// }
+
+	// setInputs(input1, input2, input3);
+	// setOutputs();
+
+	Circuit initial = parentCircuit();
 	circuits.push_back(initial);
 	tiers.push_back(circuits);
 	int circuitCount = 1;
+	bool firstSolutionFound = false;
+
+
 
 	clock_t begin = clock();
-	allTiers = createPopulation(tiers, NUMOFTIERS, circuitCount);
+	allTiers = createPopulation(tiers, circuitCount, firstSolutionFound);
 	clock_t end = clock();
 	double elapsedTime = double(end - begin) / CLOCKS_PER_SEC;
 	cout << "Elapsed Time : " << elapsedTime << endl;
 
 	printFile(allTiers);
-
 	return 0;
 }

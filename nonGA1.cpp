@@ -484,7 +484,6 @@ vector< vector<Circuit> > createPopulation(vector< vector<Circuit> > tiers, int&
 	bool secondSolutionFound = false;
 	bool firstSolTierMade = false;
 	int solSwitch = 0;
-	int i = 0;
 
 	while (!allSolutionsFound)
 	{
@@ -537,7 +536,6 @@ vector< vector<Circuit> > createPopulation(vector< vector<Circuit> > tiers, int&
 			tiers.push_back(entireNewTier);
 			cout << "Tier " << tiers.size() << " made!" << endl;
 			cout << "There are now " << numOfCircs << " circuits total." << endl;
-			cout << "outputList: " << outputList.size() << endl;
 			if (secondSolutionFound)
 			{
 				cout << "Second Solution Found!" << endl;
@@ -569,7 +567,6 @@ vector< vector<Circuit> > createPopulation(vector< vector<Circuit> > tiers, int&
 			tiers.push_back(entireNewTier);
 			cout << "Tier " << tiers.size() << " made!" << endl;
 			cout << "There are now " << numOfCircs << " circuits total." << endl;
-			cout << "outputList: " << outputList.size() << endl;
 		}
 		allSolutionsFound = allSolutionCheck(entireNewTier);
 		if (allSolutionsFound)
@@ -577,7 +574,6 @@ vector< vector<Circuit> > createPopulation(vector< vector<Circuit> > tiers, int&
 			cout << "All Solutions Found!" << endl;
 			break;
 		}
-		++i;
 	}
 	cout << "***** Both Solutions were found *****" << endl;
 	Circuit solution = allSolutionCircuit(tiers[tiers.size() - 1]);
