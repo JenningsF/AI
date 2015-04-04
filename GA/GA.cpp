@@ -142,37 +142,48 @@ void fillFitnessVector() {
 	}
 }
 
+Circuit getMoreFitCircuit(Circuit c1, Circuit c2) {
+	int c1Flags = 0;
+	int c2Flags = 0;
+	if (c1.correctFlag1) ++c1Flags;
+	if (c1.correctFlag2) ++c1Flags;
+	if (c2.correctFlag1) ++c2Flags;
+	if (c2.correctFlag2) ++c2Flags;
+	// If one of the circuits is the solution, return it
+	if (c1Flags == 2 && c2Flags == 2)
+		return (c1.gateList.size() < c2.gateList.size()) ? c1 : c2;
+	else if (c1Flags == 2)
+		return c1;
+	else if (c2Flags ==2)
+		return c2;
+	// If one has more solutions than the other, its more fit and return it
+	if (c1Flags > c2Flags || c2Flags > c1Flags)
+		return (c1Flags > c2Flags) ? c1 : c2;
+	// If neither have a solution, the circuit with least amount of gates is more fit
+	if (c1Flags == 0 && c2Flags == 0)
+		return (c1.gateList.size() < c2.gateList.size()) ? c1 : c2;
+	// If same solution count and same gate sizes, return random one (c1)
+	else return c1;
+}
+
 void initialFitnessSolution(vector<Circuit> population) {
 	Circuit fitCir;
 	for(int i = 0; i < population.size(); ++i) {
 		int index = population[i].output.to_ulong();
 		int indexOfFitCircuit;
-		cout << "index == " << index << endl;
 		fitnessVector[index].push_back(population[i]);
 		bool test = fitnessVector[index].size() > 1;
-		cout << "size > 1? " << test << "\n";
 		if (fitnessVector[index].size() > 1) {
 			//Determine most fit vector for the specific output
-			vector<int> cirFlags; //the amount of correct solutions each cir has
-			for (int j = 0; j < fitnessVector[index].size(); ++j) {
-				int flags = 0;
-				cirFlags.push_back(flags);
-				if (fitnessVector[index][j].correctFlag1) ++cirFlags[j];
-				if (fitnessVector[index][j].correctFlag2) ++cirFlags[j];
-			}
-			indexOfFitCircuit = distance(cirFlags.begin(), max_element(cirFlags.begin(), cirFlags.begin()+cirFlags.size()));
-			// if circuits have same amount of flags, the most fit circuit is that with least
-			// amount of gates
-			// Once we know the more fit circuit, erase the nonfit circuit from the vector
-			fitCir = fitnessVector[index][indexOfFitCircuit];
+			fitCir = getMoreFitCircuit(fitnessVector[index][0], fitnessVector[index][1]);
+
 			// erase all elements of the vector
-			fitnessVector[index].erase(fitnessVector[index].begin(), fitnessVector[index].begin()+1);
+			fitnessVector[index].erase(fitnessVector[index].begin(), fitnessVector[index].end());
 			// push back the more fit vector to keep it
 			fitnessVector[index].push_back(fitCir);
 		}
 	}
 }
-
 
 
 
