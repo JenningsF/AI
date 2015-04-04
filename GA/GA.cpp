@@ -12,8 +12,9 @@ Assignment	: Project 3: AI
 #include <iostream>
 #include <fstream>
 #include <time.h>
-#include<stdlib.h>
+#include <stdlib.h>
 #include <algorithm>
+#include <sys/time.h>
 
 using namespace std;
 
@@ -46,8 +47,10 @@ struct Circuit
 Circuit parentCircuit();
 Gate initGate(int id, bitOp op, bitset<8> val, Gate& oper1, Gate& oper2);
 string gateToString(Gate convert);
+void checkCorrectOutput(Circuit& currentCirc, Gate toCheck);
 bitset<8> bitOperation(int operation, bitset<8> operand1, bitset<8> operand2);
-
+int circuitCount = 0;
+vector<vector<Circuit>> fitnessVector;
 
 int randomCircuitSize(){
 	int randomInt;
@@ -77,40 +80,111 @@ bitOp getGateType(int gate){
 int randomGate(){
 	int random; 
 	random = rand()%3 + 1; 
+	return random;
 }
 
-Circuit makeRandomCircuit(int circuitSize){
+Circuit makeRandomCircuit(int circuitSize, int gateID){
 	
 	int rGateType; //Random gate type 1: AND 2: OR 3: NOT
 	bitOp gateToAdd; //Type of gate to add
 	int rVal1; 
 	int rVal2; 
-	int notCount; 
+	int notCount = 0; 
 	Gate g1; 
 	Gate g2; 
 	Gate rGate; 
 	Circuit randomCircuit = parentCircuit(); //Make sure each random has the 
+	randomCircuit.id = gateID;
 	for(int i=0; i < circuitSize; ++i){
-		rGateType = randomGate(); 
+		if (notCount < 2) {
+			rGateType = randomGate();
+			if (rGateType == 3) ++notCount;
+		}
+		else {
+			//If we get a NOT gate when already at 2, find new rand num
+			while ((rGateType=randomGate()) == 3) {
+			}
+		}
 		gateToAdd = getGateType(rGateType); 
-		rVal1 = rand()%1+i; 
-		rVal2 = rand()%1+i;
+		rVal1 = rand()%(i+3); 
+		rVal2 = rand()%(i+3);
 		g1 = randomCircuit.gateList[rVal1]; 
 		g2 = randomCircuit.gateList[rVal2];
 		bitset<8> val = bitOperation(gateToAdd, randomCircuit.gateList[i].value, randomCircuit.gateList[i].value);
-
 		rGate = initGate(randomCircuit.gateList.size()+1,gateToAdd, val, g1, g2);
+		randomCircuit.output = val;
+		checkCorrectOutput(randomCircuit, rGate);
 		randomCircuit.gateList.push_back(rGate); 
 		string newCircString = randomCircuit.circuitry + gateToString(rGate);
 		randomCircuit.circuitry = newCircString; 
 	}
 	
 	return randomCircuit;
-	
-	
-	
-	
 }
+
+
+vector<Circuit> createRandomPopulation(int populationSize) {
+	vector<Circuit> population;
+	int circuitSize = 0;
+	for (int i = 0; i < populationSize; ++i) {
+		circuitSize = rand()%5+15; //random number between 15 and 20
+		Circuit cir = makeRandomCircuit(circuitSize,circuitCount);
+		++circuitCount;
+		population.push_back(cir);
+	}
+	return population;
+}
+
+void fillFitnessVector() {
+	vector<Circuit> vec;
+	for (int i = 0; i < 255; ++i) {
+		fitnessVector.push_back(vec);
+	}
+}
+
+void initialFitnessSolution(vector<Circuit> population) {
+	Circuit fitCir;
+	for(int i = 0; i < population.size(); ++i) {
+		int index = population[i].output.to_ulong();
+		int indexOfFitCircuit;
+		cout << "index == " << index << endl;
+		fitnessVector[index].push_back(population[i]);
+		bool test = fitnessVector[index].size() > 1;
+		cout << "size > 1? " << test << "\n";
+		if (fitnessVector[index].size() > 1) {
+			//Determine most fit vector for the specific output
+			vector<int> cirFlags; //the amount of correct solutions each cir has
+			for (int j = 0; j < fitnessVector[index].size(); ++j) {
+				int flags = 0;
+				cirFlags.push_back(flags);
+				if (fitnessVector[index][j].correctFlag1) ++cirFlags[j];
+				if (fitnessVector[index][j].correctFlag2) ++cirFlags[j];
+			}
+			indexOfFitCircuit = distance(cirFlags.begin(), max_element(cirFlags.begin(), cirFlags.begin()+cirFlags.size()));
+			// if circuits have same amount of flags, the most fit circuit is that with least
+			// amount of gates
+			// Once we know the more fit circuit, erase the nonfit circuit from the vector
+			fitCir = fitnessVector[index][indexOfFitCircuit];
+			// erase all elements of the vector
+			fitnessVector[index].erase(fitnessVector[index].begin(), fitnessVector[index].begin()+1);
+			// push back the more fit vector to keep it
+			fitnessVector[index].push_back(fitCir);
+		}
+	}
+}
+
+
+
+
+void printFitnessVector() {
+	for(int i = 1; i < fitnessVector.size()+1; ++i) {
+		cout << fitnessVector[i].size() << "  ";
+		if (i%20 == 0) {
+			cout << endl;
+		}
+	}
+}
+
 
 
 void crossOver(Circuit &c1, Circuit &c2){
@@ -300,8 +374,9 @@ void printCircuitList(vector<Circuit> circuitList)
 {
 	for (int i = 0; i < circuitList.size(); ++i)
 	{
-		cout << "Circuit " << circuitList[i].id << ":" << endl;
+		//cout << "Circuit " << circuitList[i].id << ":" << endl;
 		printCircuit(circuitList[i]);
+		cout << endl;
 	}
 }
 
@@ -702,6 +777,21 @@ vector< vector<Circuit> > createPopulation(vector< vector<Circuit> > tiers, int&
 
 int main(int argc, char const *argv[])
 {
+
+	srand(time(NULL));
+	vector<Circuit> population = createRandomPopulation(10);
+	printCircuitList(population);
+	fillFitnessVector();
+	initialFitnessSolution(population);
+	printFitnessVector();
+	cout << endl;
+	return 0;
+}
+
+
+
+
+// ----------- TAKEN FROM MAIN -------------
 /* 	Circuit initial = parentCircuit();
 	vector< vector<Circuit> > tiers;
 	vector< vector<Circuit> > allTiers;
@@ -719,26 +809,24 @@ int main(int argc, char const *argv[])
 	cout << "Elapsed Time : " << elapsedTime << endl;
 
 	printFile(allTiers); */
-	srand(time(NULL));
-	int x = randomCircuitSize(); 
+
+// ----------- TAKEN FROM TYLER'S TESTING ------------
+/*	int x = randomCircuitSize(); 
 	int y = randomCircuitSize(); 
-	
+
 	int t = randomGate();
 	int s = randomGate();
-	
+
 	cout << "x: " << x << " y: " << y << endl; 
-	
+
 	cout << "s: " << s << " t: " << t << endl; 
-	
-	Circuit cir = makeRandomCircuit(x); 
+
+	Circuit cir = makeRandomCircuit(x,1); 
 	printCircuit(cir);
-	
-	Circuit cir2 = makeRandomCircuit(y); 
+
+	Circuit cir2 = makeRandomCircuit(y,1); 
 	printCircuit(cir2); 
-	
 	crossOver(cir,cir2); 
-	
 	printCircuit(cir);
-	printCircuit(cir2); 
-	return 0;
-}
+	printCircuit(cir2); */
+
