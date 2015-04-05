@@ -83,6 +83,47 @@ int randomGate(){
 	return random;
 }
 
+Circuit mutateCircuit(Circuit c) {
+	Circuit c1 = c;
+	int randomGateNum = rand()%(c1.gateList.size()-1)+4;
+	int randomInput1 = rand()%(randomGateNum-1)+1;
+	int randomInput2 = rand()%(randomGateNum-1)+1;
+	int rGateType;
+	bitOp newGate;
+	if (c1.gateList[randomGateNum].operation == NOT) {
+		while ((rGateType = randomGate()) != 3) {
+		}
+		newGate = getGateType(rGateType);
+		c1.notCount--;
+	}
+	else if (c1.gateList[randomGateNum].operation == AND) {
+		newGate = getGateType(2);
+	}
+	else if (c1.gateList[randomGateNum].operation == OR) {
+		newGate = getGateType(1);
+	}
+	Gate g1 = c1.gateList[randomInput1];
+	Gate g2 = c1.gateList[randomInput2];
+	bitset<8> val = bitOperation(newGate, c1.gateList[randomInput1].value, c1.gateList[randomInput2].value);
+	Gate rGate = initGate(c1.gateList[randomGateNum].gateNum, newGate, val, g1, g2);
+	c1.gateList[randomGateNum] = rGate;
+
+	for (int i = randomGateNum+1; i < c1.gateList.size(); ++i) {
+		bitset<8> refreshedVal = bitOperation(c1.gateList[i].operation, c1.gateList[c1.gateList[i].operId1].value, 
+			c1.gateList[c1.gateList[i].operId2].value);
+		Gate refreshedGate = initGate(c1.gateList[i].gateNum, c1.gateList[i].operation, refreshedVal, c1.gateList[c1.gateList[i].operId1-1], c1.gateList[c1.gateList[i].operId2-1]);
+		c1.gateList[i] = refreshedGate;
+	}
+
+	string mutatedCircuitry = "";
+	for (int j = 0; j < c1.gateList.size(); ++j) {
+		mutatedCircuitry += gateToString(c1.gateList[j]);
+	}
+	c1.circuitry = mutatedCircuitry;
+	return c1;
+}
+
+
 Circuit makeRandomCircuit(int circuitSize, int gateID){
 	
 	int rGateType; //Random gate type 1: AND 2: OR 3: NOT
@@ -188,9 +229,9 @@ void initialFitnessSolution(vector<Circuit> population) {
 
 
 void printFitnessVector() {
-	for(int i = 1; i < fitnessVector.size()+1; ++i) {
+	for(int i = 0; i < fitnessVector.size(); ++i) {
 		cout << fitnessVector[i].size() << "  ";
-		if (i%20 == 0) {
+		if (i != 0 && i%20 == 0) {
 			cout << endl;
 		}
 	}
@@ -790,12 +831,16 @@ int main(int argc, char const *argv[])
 {
 
 	srand(time(NULL));
-	vector<Circuit> population = createRandomPopulation(10);
+	vector<Circuit> population = createRandomPopulation(1);
 	printCircuitList(population);
-	fillFitnessVector();
-	initialFitnessSolution(population);
-	printFitnessVector();
-	cout << endl;
+
+	Circuit mutatedCir = mutateCircuit(population[0]);
+	printCircuit(mutatedCir);
+
+	// fillFitnessVector();
+	// initialFitnessSolution(population);
+	// printFitnessVector();
+	// cout << endl;
 	return 0;
 }
 
