@@ -33,8 +33,12 @@ struct Gate
 
 struct Circuit
 {
-	int id, notCount;
+	int id;
+	int notCount = 0;
+	int andCount=0;
+	int orCount = 0; 
 	bitset<8> output;
+	int fitnessScore =0; 
 	vector<Gate> gateList;
 	string circuitry;
 	Circuit* parent;
@@ -42,12 +46,21 @@ struct Circuit
 	Gate solution2;
 	bool correctFlag1 = false;
 	bool correctFlag2 = false;
+	
 };
+
+struct compareCircuits {
+	
+	inline bool operator() (const Circuit& c1, const Circuit& c2){
+		return (c1.fitnessScore < c2.fitnessScore); 
+	}
+}; 
 
 Circuit parentCircuit();
 Gate initGate(int id, bitOp op, bitset<8> val, Gate& oper1, Gate& oper2);
 string gateToString(Gate convert);
 void checkCorrectOutput(Circuit& currentCirc, Gate toCheck);
+void checkCircuit(Circuit &currentCirc);
 bitset<8> bitOperation(int operation, bitset<8> operand1, bitset<8> operand2);
 int circuitCount = 0;
 vector<vector<Circuit>> fitnessVector;
@@ -56,6 +69,14 @@ int randomCircuitSize(){
 	int randomInt;
 	randomInt = rand()%20 + 5; 
 	return randomInt; 
+}
+
+int randomGeneticOperation(){
+	int randomInt; 
+	randomInt = rand()%2 + 1; 
+	return randomInt; 
+	
+
 }
 
 bitOp getGateType(int gate){
@@ -83,47 +104,6 @@ int randomGate(){
 	return random;
 }
 
-Circuit mutateCircuit(Circuit c) {
-	Circuit c1 = c;
-	int randomGateNum = rand()%(c1.gateList.size()-1)+4;
-	int randomInput1 = rand()%(randomGateNum-1)+1;
-	int randomInput2 = rand()%(randomGateNum-1)+1;
-	int rGateType;
-	bitOp newGate;
-	if (c1.gateList[randomGateNum].operation == NOT) {
-		while ((rGateType = randomGate()) != 3) {
-		}
-		newGate = getGateType(rGateType);
-		c1.notCount--;
-	}
-	else if (c1.gateList[randomGateNum].operation == AND) {
-		newGate = getGateType(2);
-	}
-	else if (c1.gateList[randomGateNum].operation == OR) {
-		newGate = getGateType(1);
-	}
-	Gate g1 = c1.gateList[randomInput1];
-	Gate g2 = c1.gateList[randomInput2];
-	bitset<8> val = bitOperation(newGate, c1.gateList[randomInput1].value, c1.gateList[randomInput2].value);
-	Gate rGate = initGate(c1.gateList[randomGateNum].gateNum, newGate, val, g1, g2);
-	c1.gateList[randomGateNum] = rGate;
-
-	for (int i = randomGateNum+1; i < c1.gateList.size(); ++i) {
-		bitset<8> refreshedVal = bitOperation(c1.gateList[i].operation, c1.gateList[c1.gateList[i].operId1].value, 
-			c1.gateList[c1.gateList[i].operId2].value);
-		Gate refreshedGate = initGate(c1.gateList[i].gateNum, c1.gateList[i].operation, refreshedVal, c1.gateList[c1.gateList[i].operId1-1], c1.gateList[c1.gateList[i].operId2-1]);
-		c1.gateList[i] = refreshedGate;
-	}
-
-	string mutatedCircuitry = "";
-	for (int j = 0; j < c1.gateList.size(); ++j) {
-		mutatedCircuitry += gateToString(c1.gateList[j]);
-	}
-	c1.circuitry = mutatedCircuitry;
-	return c1;
-}
-
-
 Circuit makeRandomCircuit(int circuitSize, int gateID){
 	
 	int rGateType; //Random gate type 1: AND 2: OR 3: NOT
@@ -139,12 +119,21 @@ Circuit makeRandomCircuit(int circuitSize, int gateID){
 	for(int i=0; i < circuitSize; ++i){
 		if (notCount < 2) {
 			rGateType = randomGate();
-			if (rGateType == 3) ++notCount;
+			if (rGateType == 3){ 
+				++notCount;
+				randomCircuit.notCount++;
+			}
 		}
 		else {
 			//If we get a NOT gate when already at 2, find new rand num
 			while ((rGateType=randomGate()) == 3) {
 			}
+		}
+		
+		if(rGateType == 1){
+			randomCircuit.andCount++; 
+		}else if (rGateType == 2){
+			randomCircuit.orCount++; 
 		}
 		gateToAdd = getGateType(rGateType); 
 		rVal1 = rand()%(i+3); 
@@ -207,41 +196,29 @@ Circuit getMoreFitCircuit(Circuit c1, Circuit c2) {
 	else return c1;
 }
 
-void initialFitnessSolution(vector<Circuit> population) {
-	Circuit fitCir;
-	for(int i = 0; i < population.size(); ++i) {
-		int index = population[i].output.to_ulong();
-		int indexOfFitCircuit;
-		fitnessVector[index].push_back(population[i]);
-		bool test = fitnessVector[index].size() > 1;
-		if (fitnessVector[index].size() > 1) {
-			//Determine most fit vector for the specific output
-			fitCir = getMoreFitCircuit(fitnessVector[index][0], fitnessVector[index][1]);
-
-			// erase all elements of the vector
-			fitnessVector[index].erase(fitnessVector[index].begin(), fitnessVector[index].end());
-			// push back the more fit vector to keep it
-			fitnessVector[index].push_back(fitCir);
-		}
+void getFitnessScore(Circuit &c1){
+	 
+	if(c1.correctFlag1){
+		c1.fitnessScore += 1; 
 	}
-}
-
-
-
-void printFitnessVector() {
-	for(int i = 0; i < fitnessVector.size(); ++i) {
-		cout << fitnessVector[i].size() << "  ";
-		if (i != 0 && i%20 == 0) {
-			cout << endl;
-		}
+	
+	if(c1.correctFlag2){
+		c1.fitnessScore += 1;
 	}
+	
+	c1.fitnessScore+= (c1.andCount * 10); 
+	c1.fitnessScore += (c1.orCount * 10);
+	
+	
+	//Maybe score the nots? Would have to remove check when creating them
+	
+	
+
 }
-
-
 
 void crossOver(Circuit &c1, Circuit &c2){
 	
-	int minSize; 
+	int minSize=0; 
 	if(c1.gateList.size() > c2.gateList.size()){
 		minSize = c2.gateList.size(); 
 	}else{
@@ -249,8 +226,8 @@ void crossOver(Circuit &c1, Circuit &c2){
 	}
 	int randomPosition = rand()% minSize + 1; 
 	randomPosition--; 
-	cout << "CrossOver Position: " << randomPosition << endl; 
-	cout << endl << endl; 
+	//cout << "CrossOver Position: " << randomPosition << endl; 
+	//cout << endl << endl; 
 	
 	vector<Gate> tempGateList; 
 	vector<Gate> tempGateList2; 
@@ -280,7 +257,178 @@ void crossOver(Circuit &c1, Circuit &c2){
 		c2.circuitry += gateToString(c2.gateList[i]); 
 	}
 	
+	for (int i = randomPosition+1; i < c1.gateList.size(); ++i) {
+		bitset<8> refreshedVal = bitOperation(c1.gateList[i].operation, c1.gateList[c1.gateList[i].operId1].value, 
+			c1.gateList[c1.gateList[i].operId2].value);
+		Gate refreshedGate = initGate(c1.gateList[i].gateNum, c1.gateList[i].operation, refreshedVal, c1.gateList[c1.gateList[i].operId1-1], c1.gateList[c1.gateList[i].operId2-1]);
+		c1.gateList[i] = refreshedGate;
+	}
+	
+	for (int i = randomPosition+1; i < c2.gateList.size(); ++i) {
+		bitset<8> refreshedVal = bitOperation(c2.gateList[i].operation, c2.gateList[c2.gateList[i].operId1].value, 
+			c2.gateList[c2.gateList[i].operId2].value);
+		Gate refreshedGate = initGate(c2.gateList[i].gateNum, c2.gateList[i].operation, refreshedVal, c2.gateList[c2.gateList[i].operId1-1], c1.gateList[c1.gateList[i].operId2-1]);
+		c2.gateList[i] = refreshedGate;
+	}
+	
+	//Check if updated info is solution
+	
+	
+	
 }
+
+Circuit mutateCircuit(Circuit c) {
+	Circuit c1 = c;
+	int randomGateNum = rand()%(c1.gateList.size()-4)+4; //After initial gates
+	int randomInput1 = rand()%(randomGateNum-1)+1;
+	int randomInput2 = rand()%(randomGateNum-1)+1;
+	int rGateType;
+	bitOp newGate;
+	
+	if (c1.gateList[randomGateNum].operation == NOT) {
+		while ((rGateType = randomGate()) != 3) {
+		}
+		newGate = getGateType(rGateType);
+		c1.notCount--;
+	}
+	else if (c1.gateList[randomGateNum].operation == AND) {
+		newGate = getGateType(2);
+	}
+	else if (c1.gateList[randomGateNum].operation == OR) {
+		newGate = getGateType(1);
+	}
+	Gate g1 = c1.gateList[randomInput1];
+	Gate g2 = c1.gateList[randomInput2];
+	bitset<8> val = bitOperation(newGate, c1.gateList[randomInput1].value, c1.gateList[randomInput2].value);
+	Gate rGate = initGate(c1.gateList[randomGateNum].gateNum, newGate, val, g1, g2);
+	c1.gateList[randomGateNum] = rGate;
+
+	for (int i = randomGateNum+1; i < c1.gateList.size(); ++i) {
+		bitset<8> refreshedVal = bitOperation(c1.gateList[i].operation, c1.gateList[c1.gateList[i].operId1].value, 
+			c1.gateList[c1.gateList[i].operId2].value);
+		Gate refreshedGate = initGate(c1.gateList[i].gateNum, c1.gateList[i].operation, refreshedVal, c1.gateList[c1.gateList[i].operId1-1], c1.gateList[c1.gateList[i].operId2-1]);
+		c1.gateList[i] = refreshedGate;
+	}
+
+	string mutatedCircuitry = "";
+	for (int j = 0; j < c1.gateList.size(); ++j) {
+		mutatedCircuitry += gateToString(c1.gateList[j]);
+	}
+	c1.circuitry = mutatedCircuitry;
+	
+	//Check if mutated Circuit is solution 
+	
+	
+	
+	
+	
+	return c1;
+}
+
+
+void geneticOperations(vector<Circuit> &topCircuits){
+	//If there is only one circuit left to modify we need to mutate
+	Circuit c1; 
+	Circuit c2; 
+	
+	for(int i=0; i < topCircuits.size(); ++i){
+	
+		int operation = randomGeneticOperation(); 
+		//cout << "Top Circuit Size: " << topCircuits.size() << endl; 
+	
+		if(i == topCircuits.size() - 1){
+			c1 = topCircuits[i];	//Can't crossover with only 1 circuit
+			c2 = mutateCircuit(c1);
+			topCircuits[i] = c2; 
+			checkCircuit(topCircuits[i]); 
+			break; 
+		} 
+		
+		if(operation == 1){
+			//Mutate
+			//cout << "Mutating " << endl; 
+			c1 = topCircuits[i];
+			c2 = mutateCircuit(c1); 
+			topCircuits[i] = c2; 
+			checkCircuit(topCircuits[i]); 
+		}else if(operation == 2){
+			//Crossover  
+			//cout << "Crossing over " << endl; 
+			crossOver(topCircuits[i], topCircuits[i+1]); 
+			checkCircuit(topCircuits[i]); 
+			checkCircuit(topCircuits[i+1]); 
+			i++; 
+			if(i== topCircuits.size()-2){
+				break; //Used last two circuits in crossover
+			}	
+		
+		}
+		
+		
+	}
+
+}
+
+void assignFitnessScores(vector<Circuit> &population){
+	
+	for(int i=0; i < population.size(); ++i){
+		getFitnessScore(population[i]); 
+	}
+
+
+
+}
+
+void initialFitnessSolution(vector<Circuit> population) {
+	Circuit fitCir;
+	for(int i = 0; i < population.size(); ++i) {
+		int index = population[i].output.to_ulong();
+		int indexOfFitCircuit;
+		fitnessVector[index].push_back(population[i]);
+		bool test = fitnessVector[index].size() > 1;
+		if (fitnessVector[index].size() > 1) {
+			//Determine most fit vector for the specific output
+			fitCir = getMoreFitCircuit(fitnessVector[index][0], fitnessVector[index][1]);
+
+			// erase all elements of the vector
+			fitnessVector[index].erase(fitnessVector[index].begin(), fitnessVector[index].end());
+			// push back the more fit vector to keep it
+			fitnessVector[index].push_back(fitCir);
+		}
+	}
+}
+
+
+vector<Circuit> getMostFit(vector<Circuit> population){
+	
+	int selectPop = population.size() * .10; 
+	//cout << selectPop << endl; 
+	vector<Circuit> topCircuits; 
+	for(int i=0; i < selectPop; ++i){
+	
+		topCircuits.push_back(population[i]); 
+	}
+	
+	return topCircuits;
+	
+	
+}
+
+
+
+void printFitnessVector() {
+	for(int i = 1; i < fitnessVector.size()+1; ++i) {
+		cout << fitnessVector[i].size() << "  ";
+		if (i%20 == 0) {
+			cout << endl;
+		}
+	}
+	
+}
+
+
+
+
 	
 
 string opToString(int operation)
@@ -518,6 +666,39 @@ bool doesOutputExist(vector< bitset<8> >& outputList, bitset<8> outputToCheck)
 	return false;
 }
 
+//Check if a circuit is a final solution
+
+bool isSolution(Circuit c1){
+	if(c1.correctFlag1 && c1.correctFlag2){
+		return true; 
+	}else{
+		return false; 
+	}
+
+}
+
+
+//Check circuit that's been mutated or crossed-over
+void checkCircuit(Circuit &currentCirc){
+	
+	bitset<8> OUTPUT1 = 23; 
+	bitset<8> OUTPUT2 = 105; 
+	for(int i=0; i < currentCirc.gateList.size(); ++i){
+		
+		if(currentCirc.gateList[i].value == OUTPUT1){
+			currentCirc.correctFlag1 = true; 
+			currentCirc.solution1 = currentCirc.gateList[i]; 
+		}else if(currentCirc.gateList[i].value == OUTPUT2){
+			currentCirc.correctFlag2 = true; 
+			currentCirc.solution2 = currentCirc.gateList[i]; 
+		}
+	
+	
+	}
+
+
+}
+
 // Check if a new gate added to a curcuit contains a solution
 void checkCorrectOutput(Circuit& currentCirc, Gate toCheck)
 {
@@ -571,6 +752,7 @@ bool isSolutionFound(Circuit checking, int switcher)
 			break;
 	}
 }
+
 
 // Traverses a tier and checks if a circuit is a full solution
 bool allSolutionCheck(vector<Circuit>& solTestVect)
@@ -728,6 +910,7 @@ vector< vector<Circuit> > createPopulation(vector< vector<Circuit> > tiers, int&
 	bool secondSolutionFound = false;
 	bool firstSolTierMade = false;
 	int solSwitch = 0;
+	//int numberOfGenerations = 0; 
 
 	while (!allSolutionsFound)
 	{
@@ -818,6 +1001,7 @@ vector< vector<Circuit> > createPopulation(vector< vector<Circuit> > tiers, int&
 			cout << "All Solutions Found!" << endl;
 			break;
 		}
+		
 	}
 	cout << "***** Both Solutions were found *****" << endl;
 	Circuit solution = allSolutionCircuit(tiers[tiers.size() - 1]);
@@ -831,16 +1015,66 @@ int main(int argc, char const *argv[])
 {
 
 	srand(time(NULL));
-	vector<Circuit> population = createRandomPopulation(1);
+	bool allSolutionsFound = false; 
+	int solutionIndex; 
+	int numberOfGenerations = 0;
+	//1. Choose an initial random population of individuals
+	vector<Circuit> population = createRandomPopulation(10000);
 	printCircuitList(population);
-
-	Circuit mutatedCir = mutateCircuit(population[0]);
-	printCircuit(mutatedCir);
-
-	// fillFitnessVector();
-	// initialFitnessSolution(population);
-	// printFitnessVector();
-	// cout << endl;
+	
+	//2. Evaluate the fitness of the individuals 
+	assignFitnessScores(population); 
+	sort(population.begin(), population.end(), compareCircuits()); 
+	
+	//3. Repeat 
+	while(!allSolutionsFound){
+	/* for(int i=0; i < population.size(); ++i){
+		cout << "FS: " << population[i].fitnessScore << endl; 
+	
+	} */
+	
+	//4. Select the best individuals to be used by the genetic operators
+	vector<Circuit> mostFitCircuits; 
+	mostFitCircuits = getMostFit(population); 
+	/* for(int i=0; i < mostFitCircuits.size(); ++i){
+		cout << "Most Fit Circuit FS: " << mostFitCircuits[i].fitnessScore << endl; 
+	} */
+	cout << endl; 
+	//5. Generate new indidviduals using crossover and mutation
+	geneticOperations(mostFitCircuits); 
+	
+	//printCircuitList(mostFitCircuits); 
+	
+	
+	//6. Evaluate the fitness of the new individuals  
+	assignFitnessScores(mostFitCircuits); 
+	
+	//7. Replace the worst individuals of the population by the best new individuals
+	
+	int tenPercent = population.size() * .10; 
+	
+	int worstPosition = population.size() - (tenPercent+1); 
+	int index = 0; 
+	for(int i=worstPosition; i < mostFitCircuits.size(); ++i){
+		population[i] = mostFitCircuits[index];
+		index++; 
+	}
+	
+	index = 0; 
+	
+	 for(int i=0; i < population.size(); ++i){
+		allSolutionsFound = isSolution(population[i]); 
+		solutionIndex = i; 
+	} 
+	
+	numberOfGenerations++; 
+	cout << "Number of Generations: " << numberOfGenerations << endl; 
+	
+	}
+	
+	cout << "Solution Found: " << endl; 
+	printCircuit(population[solutionIndex]); 
+	
 	return 0;
 }
 
@@ -886,3 +1120,38 @@ int main(int argc, char const *argv[])
 	printCircuit(cir);
 	printCircuit(cir2); */
 
+
+	//random = rand()%gateSize + 4; //Between 4 & # of gates
+	//int gate = randomGate(); //Random gate to replace with
+	//circuit.gateList[random] = getGateType(gate)
+	
+	
+
+
+	
+
+
+
+
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
