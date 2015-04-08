@@ -706,8 +706,7 @@ int main(int argc, char const *argv[])
 	vector<Circuit> mostFitCircuits; 
 	//1. Choose an initial random population of individuals
 	vector<Circuit> population = createRandomPopulation(10000);
-	//printCircuitList(population);
-	
+
 	//2. Evaluate the fitness of the individuals 
 	assignFitnessScores(population); 
 	 
