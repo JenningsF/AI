@@ -15,8 +15,12 @@ Assignment	: Project 3: AI
 #include <stdlib.h>
 #include <algorithm>
 #include <sys/time.h>
+#include <cmath> 
+#include<limits.h>
 
 using namespace std;
+
+
 
 
 enum bitOp {AND, OR, NOT, NONE};
@@ -64,7 +68,7 @@ void checkCircuit(Circuit &currentCirc);
 bitset<8> bitOperation(int operation, bitset<8> operand1, bitset<8> operand2);
 int circuitCount = 0;
 vector<vector<Circuit>> fitnessVector;
-
+bool solution1Found = false; 
 int randomCircuitSize(){
 	int randomInt;
 	randomInt = rand()%20 + 5; 
@@ -157,7 +161,7 @@ vector<Circuit> createRandomPopulation(int populationSize) {
 	vector<Circuit> population;
 	int circuitSize = 0;
 	for (int i = 0; i < populationSize; ++i) {
-		circuitSize = rand()%5+15; //random number between 15 and 20
+		circuitSize = rand()%5+20; //random number between 15 and 20
 		Circuit cir = makeRandomCircuit(circuitSize,circuitCount);
 		++circuitCount;
 		population.push_back(cir);
@@ -198,34 +202,83 @@ Circuit getMoreFitCircuit(Circuit c1, Circuit c2) {
 
 void getFitnessScore(Circuit &c1){
 	 
-	if(c1.correctFlag1){
-		c1.fitnessScore += 1; 
+	 c1.fitnessScore = 0;
+	 int differenceCount =0; 
+	 bitset<8> OUTPUT1 = 23;
+	 bitset<8> OUTPUT2 = 105; 
+	for(int i=0; i < 8; ++i){
+		if(c1.output[i] != OUTPUT2[i]){
+			differenceCount++; 
+		}
+	}	 
+	 c1.fitnessScore += (1000000 * differenceCount); 
+	c1.fitnessScore+= (c1.andCount * 10); 
+	c1.fitnessScore += (c1.orCount * 10);
+	c1.fitnessScore+= (c1.notCount * 10000); 
+	
+	 if(c1.correctFlag1){
+		c1.fitnessScore -=1000; 
 	}
 	
 	if(c1.correctFlag2){
-		c1.fitnessScore += 1;
-	}
-	
-	c1.fitnessScore+= (c1.andCount * 10); 
-	c1.fitnessScore += (c1.orCount * 10);
-	
-	
-	//Maybe score the nots? Would have to remove check when creating them
-	
-	
+		c1.fitnessScore -=1000;
+	}  
 
 }
 
-void crossOver(Circuit &c1, Circuit &c2){
+vector<Circuit> crossOver(Circuit c1, Circuit c2){
 	
 	int minSize=0; 
+	vector<Circuit> children; 
 	if(c1.gateList.size() > c2.gateList.size()){
 		minSize = c2.gateList.size(); 
 	}else{
 		minSize = c1.gateList.size(); 
 	}
-	int randomPosition = rand()% minSize + 1; 
-	randomPosition--; 
+	int randomPosition = rand()% (minSize - 3) + 3; 
+	//randomPosition--;
+	int c1Solution1Position; 
+	int c1Solution2Position; 
+	int c2Solution1Position;
+	int c2Solution2Position; 
+	int c1DistanceToEnd= 0;
+	int c2DistanceToEnd = 0; 
+	int minDistance; 
+
+	
+	/* if(c1.correctFlag1 || c1.correctFlag2 || c2.correctFlag1 || c2.correctFlag2){
+		 if (c1.correctFlag1 || c1.correctFlag2) {
+			if (c1.correctFlag1) {
+				c1Solution1Position = c1.solution1.gateNum-1; 
+				c1DistanceToEnd = c1.gateList.size() - c1Solution1Position;
+				//randomPosition = rand()%(c1.gateList.size() - c1.solution1.gateNum-1) + c1.solution1.gateNum-1;	
+			}
+			else { 
+				c1Solution2Position = c1.solution2.gateNum-1; 
+				c1DistanceToEnd = c1.gateList.size() - c1Solution2Position;
+				//randomPosition = rand()%(c1.gateList.size() - c1.solution2.gateNum-1) + c1.solution2.gateNum-1;	
+			}
+		} 
+		
+		if(c2.correctFlag1 || c2.correctFlag2){
+			if(c2.correctFlag1){
+				c2Solution2Position = c2.solution1.gateNum-1; 
+				c2DistanceToEnd = c2.gateList.size() - c2Solution1Position;
+			}else{
+				c2Solution2Position = c2.solution2.gateNum-1;
+				c2DistanceToEnd = c2.gateList.size() - c2Solution2Position; 
+			}
+		}
+		
+		if(c1DistanceToEnd > c2DistanceToEnd){
+			minDistance = c2DistanceToEnd; 
+		}else{
+			minDistance = c1DistanceToEnd; 
+		}
+		randomPosition = minDistance; 
+	} */
+	
+	
 	//cout << "CrossOver Position: " << randomPosition << endl; 
 	//cout << endl << endl; 
 	
@@ -245,32 +298,61 @@ void crossOver(Circuit &c1, Circuit &c2){
 	
 	c2.gateList.erase(c2.gateList.begin()+randomPosition, c2.gateList.end()); 
 	c2.gateList.insert(c2.gateList.end(), tempGateList.begin(), tempGateList.end()); 
-	
 
+	
+	for (int i = randomPosition+1; i < c1.gateList.size(); ++i) {
+		bitset<8> refreshedVal = bitOperation(c1.gateList[i].operation, c1.gateList[c1.gateList[i].operId1-1].value, 
+			c1.gateList[c1.gateList[i].operId2-1].value);
+		Gate refreshedGate = initGate(c1.gateList[i].gateNum, c1.gateList[i].operation, refreshedVal, c1.gateList[c1.gateList[i].operId1-1], c1.gateList[c1.gateList[i].operId2-1]);
+		c1.gateList[i] = refreshedGate;
+		c1.output = refreshedVal; 
+	}
+	
+	for (int i = randomPosition+1; i < c2.gateList.size(); ++i) {
+		bitset<8> refreshedVal = bitOperation(c2.gateList[i].operation, c2.gateList[c2.gateList[i].operId1-1].value, 
+			c2.gateList[c2.gateList[i].operId2-1].value);
+		Gate refreshedGate = initGate(c2.gateList[i].gateNum, c2.gateList[i].operation, refreshedVal, c2.gateList[c2.gateList[i].operId1-1], c1.gateList[c1.gateList[i].operId2-1]);
+		c2.gateList[i] = refreshedGate;
+		c2.output = refreshedVal; 
+	}
+	
 	c1.circuitry = ""; 
 	c2.circuitry = ""; 
+	c1.andCount =0; 
+	c1.notCount =0; 
+	c1.orCount = 0;
+	c2.andCount = 0; 
+	c2.notCount = 0;
+	c2.orCount = 0;
 	for(int i=0; i < c1.gateList.size(); ++i){
+		
+		if(c1.gateList[i].operation == AND){
+			c1.andCount++;
+		}else if(c1.gateList[i].operation == OR){
+			c1.orCount++; 
+		}else if (c1.gateList[i].operation == NOT){
+			c1.notCount++; 
+		}
 		c1.circuitry += gateToString(c1.gateList[i]); 
 	}
 	
 	for(int i=0; i < c2.gateList.size(); ++i){
+		
+		if(c2.gateList[i].operation == AND){
+			c2.andCount++;
+		}else if(c2.gateList[i].operation == OR){
+			c2.orCount++; 
+		}else if (c2.gateList[i].operation == NOT){
+			c2.notCount++; 
+		}
+		
 		c2.circuitry += gateToString(c2.gateList[i]); 
 	}
 	
-	for (int i = randomPosition+1; i < c1.gateList.size(); ++i) {
-		bitset<8> refreshedVal = bitOperation(c1.gateList[i].operation, c1.gateList[c1.gateList[i].operId1].value, 
-			c1.gateList[c1.gateList[i].operId2].value);
-		Gate refreshedGate = initGate(c1.gateList[i].gateNum, c1.gateList[i].operation, refreshedVal, c1.gateList[c1.gateList[i].operId1-1], c1.gateList[c1.gateList[i].operId2-1]);
-		c1.gateList[i] = refreshedGate;
-	}
 	
-	for (int i = randomPosition+1; i < c2.gateList.size(); ++i) {
-		bitset<8> refreshedVal = bitOperation(c2.gateList[i].operation, c2.gateList[c2.gateList[i].operId1].value, 
-			c2.gateList[c2.gateList[i].operId2].value);
-		Gate refreshedGate = initGate(c2.gateList[i].gateNum, c2.gateList[i].operation, refreshedVal, c2.gateList[c2.gateList[i].operId1-1], c1.gateList[c1.gateList[i].operId2-1]);
-		c2.gateList[i] = refreshedGate;
-	}
-	
+	children.push_back(c1);
+	children.push_back(c2);
+	return children; 
 	//Check if updated info is solution
 	
 	
@@ -279,11 +361,20 @@ void crossOver(Circuit &c1, Circuit &c2){
 
 Circuit mutateCircuit(Circuit c) {
 	Circuit c1 = c;
-	int randomGateNum = rand()%(c1.gateList.size()-4)+4; //After initial gates
-	int randomInput1 = rand()%(randomGateNum-1)+1;
-	int randomInput2 = rand()%(randomGateNum-1)+1;
+	int randomGateNum = rand()%(c1.gateList.size()-3)+3; //After initial gates
+	int randomInput1 = rand()%(randomGateNum);
+	int randomInput2 = rand()%(randomGateNum);
 	int rGateType;
 	bitOp newGate;
+	
+	   // if (c1.correctFlag1 || c1.correctFlag2) {
+		// if (c1.correctFlag1) {
+			// randomGateNum = rand()%(c1.gateList.size() - c1.solution1.gateNum) + c1.solution1.gateNum;	
+		// }
+		// else { 
+			// randomGateNum = rand()%(c1.gateList.size() - c1.solution2.gateNum) + c1.solution2.gateNum;	
+		// }
+	// }   
 	
 	if (c1.gateList[randomGateNum].operation == NOT) {
 		while ((rGateType = randomGate()) != 3) {
@@ -304,14 +395,27 @@ Circuit mutateCircuit(Circuit c) {
 	c1.gateList[randomGateNum] = rGate;
 
 	for (int i = randomGateNum+1; i < c1.gateList.size(); ++i) {
-		bitset<8> refreshedVal = bitOperation(c1.gateList[i].operation, c1.gateList[c1.gateList[i].operId1].value, 
-			c1.gateList[c1.gateList[i].operId2].value);
+		bitset<8> refreshedVal = bitOperation(c1.gateList[i].operation, c1.gateList[c1.gateList[i].operId1-1].value, 
+			c1.gateList[c1.gateList[i].operId2-1].value);
 		Gate refreshedGate = initGate(c1.gateList[i].gateNum, c1.gateList[i].operation, refreshedVal, c1.gateList[c1.gateList[i].operId1-1], c1.gateList[c1.gateList[i].operId2-1]);
 		c1.gateList[i] = refreshedGate;
+		c1.output = refreshedVal; 
 	}
 
 	string mutatedCircuitry = "";
+	c1.andCount =0; 
+	c1.notCount =0; 
+	c1.orCount = 0;
 	for (int j = 0; j < c1.gateList.size(); ++j) {
+		
+		if(c1.gateList[j].operation == AND){
+			c1.andCount++;
+		}else if(c1.gateList[j].operation == OR){
+			c1.orCount++; 
+		}else if (c1.gateList[j].operation == NOT){
+			c1.notCount++; 
+		}
+		
 		mutatedCircuitry += gateToString(c1.gateList[j]);
 	}
 	c1.circuitry = mutatedCircuitry;
@@ -326,10 +430,11 @@ Circuit mutateCircuit(Circuit c) {
 }
 
 
-void geneticOperations(vector<Circuit> &topCircuits){
+void geneticOperations(vector<Circuit> &topCircuits, vector<Circuit> &offspring){
 	//If there is only one circuit left to modify we need to mutate
 	Circuit c1; 
 	Circuit c2; 
+	vector<Circuit> children; 
 	
 	for(int i=0; i < topCircuits.size(); ++i){
 	
@@ -339,8 +444,8 @@ void geneticOperations(vector<Circuit> &topCircuits){
 		if(i == topCircuits.size() - 1){
 			c1 = topCircuits[i];	//Can't crossover with only 1 circuit
 			c2 = mutateCircuit(c1);
-			topCircuits[i] = c2; 
-			checkCircuit(topCircuits[i]); 
+			//topCircuits[i] = c2; 
+			offspring.push_back(c2);
 			break; 
 		} 
 		
@@ -349,16 +454,29 @@ void geneticOperations(vector<Circuit> &topCircuits){
 			//cout << "Mutating " << endl; 
 			c1 = topCircuits[i];
 			c2 = mutateCircuit(c1); 
-			topCircuits[i] = c2; 
-			checkCircuit(topCircuits[i]); 
+			offspring.push_back(c2);
+			//topCircuits[i] = c2; 
+			//checkCircuit(topCircuits[i]); 
 		}else if(operation == 2){
 			//Crossover  
 			//cout << "Crossing over " << endl; 
-			crossOver(topCircuits[i], topCircuits[i+1]); 
-			checkCircuit(topCircuits[i]); 
-			checkCircuit(topCircuits[i+1]); 
+			c1 = topCircuits[i]; 
+			c2 = topCircuits[i+1];
+			children = crossOver(c1,c2);
+
+			for(int j=0; j < 2; ++j){
+				offspring.push_back(children[j]);
+				
+			}
+			//crossOver(topCircuits[i], topCircuits[i+1]); 
+			//checkCircuit(children[i]); 
+			//checkCircuit(children[i]);
+				
 			i++; 
 			if(i== topCircuits.size()-2){
+				c1 = topCircuits[i];
+				c2 = mutateCircuit(c1); 
+				offspring.push_back(c2);
 				break; //Used last two circuits in crossover
 			}	
 		
@@ -401,12 +519,23 @@ void initialFitnessSolution(vector<Circuit> population) {
 
 vector<Circuit> getMostFit(vector<Circuit> population){
 	
-	int selectPop = population.size() * .10; 
-	//cout << selectPop << endl; 
-	vector<Circuit> topCircuits; 
-	for(int i=0; i < selectPop; ++i){
+	int selectPop = population.size() * .5; 
 	
-		topCircuits.push_back(population[i]); 
+	//cout << selectPop << endl;
+	int randomCircuit = 0; 
+	int randomPosition = 0; 
+	vector<Circuit> topCircuits; 
+	for(int i=0; i < population.size(); ++i){
+		randomCircuit = rand()%10 + 1; 
+		if(randomCircuit > 8){
+			//smaller probablility choose less fit
+			randomPosition = rand()%(selectPop-1) + selectPop; 
+			topCircuits.push_back(population[randomPosition]);
+		}else{
+			//Push back more fit Circuit
+			topCircuits.push_back(population[i]); 
+		}
+		
 	}
 	
 	return topCircuits;
@@ -686,6 +815,7 @@ void checkCircuit(Circuit &currentCirc){
 	for(int i=0; i < currentCirc.gateList.size(); ++i){
 		
 		if(currentCirc.gateList[i].value == OUTPUT1){
+			
 			currentCirc.correctFlag1 = true; 
 			currentCirc.solution1 = currentCirc.gateList[i]; 
 		}else if(currentCirc.gateList[i].value == OUTPUT2){
@@ -1018,59 +1148,90 @@ int main(int argc, char const *argv[])
 	bool allSolutionsFound = false; 
 	int solutionIndex; 
 	int numberOfGenerations = 0;
+	vector<Circuit> offspring; 
+	vector<Circuit> mostFitCircuits; 
 	//1. Choose an initial random population of individuals
 	vector<Circuit> population = createRandomPopulation(10000);
-	printCircuitList(population);
+	//printCircuitList(population);
 	
 	//2. Evaluate the fitness of the individuals 
 	assignFitnessScores(population); 
-	sort(population.begin(), population.end(), compareCircuits()); 
+	 
 	
 	//3. Repeat 
 	while(!allSolutionsFound){
-	/* for(int i=0; i < population.size(); ++i){
-		cout << "FS: " << population[i].fitnessScore << endl; 
-	
-	} */
 	
 	//4. Select the best individuals to be used by the genetic operators
-	vector<Circuit> mostFitCircuits; 
+	
 	mostFitCircuits = getMostFit(population); 
-	/* for(int i=0; i < mostFitCircuits.size(); ++i){
-		cout << "Most Fit Circuit FS: " << mostFitCircuits[i].fitnessScore << endl; 
-	} */
+	
 	cout << endl; 
 	//5. Generate new indidviduals using crossover and mutation
-	geneticOperations(mostFitCircuits); 
 	
-	//printCircuitList(mostFitCircuits); 
+	geneticOperations(mostFitCircuits, offspring); 
+	cout << "Offspring size: " << offspring.size() << endl;
+	 
 	
 	
 	//6. Evaluate the fitness of the new individuals  
-	assignFitnessScores(mostFitCircuits); 
-	
+	assignFitnessScores(offspring); 
 	//7. Replace the worst individuals of the population by the best new individuals
+	
 	
 	int tenPercent = population.size() * .10; 
 	
 	int worstPosition = population.size() - (tenPercent+1); 
+	
 	int index = 0; 
-	for(int i=worstPosition; i < mostFitCircuits.size(); ++i){
-		population[i] = mostFitCircuits[index];
-		index++; 
+	
+	for(int i=0; i < population.size(); ++i){
+		for(int j=0; j < offspring.size(); ++j){
+			if(offspring[j].fitnessScore < population[i].fitnessScore){
+				population[i] = offspring[j]; 
+				offspring[j].fitnessScore = INT_MAX; //Set to large number since we already used it
+				break; 
+			}
+		}
 	}
 	
 	index = 0; 
 	
 	 for(int i=0; i < population.size(); ++i){
+		checkCircuit(population[i]);
 		allSolutionsFound = isSolution(population[i]); 
 		solutionIndex = i; 
 	} 
 	
 	numberOfGenerations++; 
 	cout << "Number of Generations: " << numberOfGenerations << endl; 
+	cout << "Population Size: " << population.size() << endl; 
 	
+	double averageFS = 0; 
+	for(int i=0; i < population.size(); ++i){
+		averageFS += population[i].fitnessScore; 
 	}
+	
+	averageFS = (averageFS / population.size()); 
+	cout << "Average FS: " << averageFS << endl; 
+	
+	for(int i=0; i < population.size(); ++i){
+		if(population[i].correctFlag1){
+			//cout << "Solution 1 Found " << endl; 
+		}
+		
+		if(population[i].correctFlag2){
+			cout << "Solution 2 Found" << endl; 
+		}
+	}
+	sort(population.begin(), population.end(), compareCircuits());
+	cout << "Best Fitness Score: " << population[0].fitnessScore << endl; 
+	cout << "Best Circuit: " << endl; 
+	cout << "Value: " << population[0].output.to_ulong() << endl; 
+	//printCircuit(population[0]); 
+	offspring.clear(); 
+	mostFitCircuits.clear(); 
+	}
+	
 	
 	cout << "Solution Found: " << endl; 
 	printCircuit(population[solutionIndex]); 
